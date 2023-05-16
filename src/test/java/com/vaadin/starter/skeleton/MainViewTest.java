@@ -70,7 +70,7 @@ public class MainViewTest {
     }
 
     @Test
-    public void testGreeting() {
+    public void testBlockingDialog() {
         // simulate a button click as if clicked by the user
         _click(_get(Button.class, spec -> spec.withText("Blocking dialog")));
 
