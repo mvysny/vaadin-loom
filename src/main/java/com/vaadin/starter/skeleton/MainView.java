@@ -8,6 +8,7 @@ import com.vaadin.flow.component.confirmdialog.ConfirmDialog;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.Route;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -20,13 +21,13 @@ public class MainView extends VerticalLayout {
     private transient UIExecutor executor;
 
     @Override
-    protected void onAttach(AttachEvent attachEvent) {
+    protected void onAttach(@NotNull AttachEvent attachEvent) {
         super.onAttach(attachEvent);
         executor = new UIExecutor(UI.getCurrent());
     }
 
     @Override
-    protected void onDetach(DetachEvent detachEvent) {
+    protected void onDetach(@NotNull DetachEvent detachEvent) {
         try {
             executor.close();
         } catch (Exception e) {
@@ -46,8 +47,8 @@ public class MainView extends VerticalLayout {
         })));
     }
 
-    public static boolean confirmDialog(String message) {
-        UIExecutor.assertVirtualThread();
+    public static boolean confirmDialog(@NotNull String message) {
+        UIExecutor.assertUIVirtualThread();
 
         final BlockingQueue<Boolean> responseQueue = new LinkedBlockingQueue<>();
         final ConfirmDialog dialog = new ConfirmDialog();

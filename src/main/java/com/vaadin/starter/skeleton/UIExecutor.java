@@ -3,6 +3,7 @@ package com.vaadin.starter.skeleton;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.server.Command;
 import com.vaadin.flow.server.VaadinSession;
+import org.jetbrains.annotations.NotNull;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
@@ -20,9 +21,10 @@ import java.util.concurrent.Executors;
  * Runs on Loom virtual threads. Obviously uses a very dark magic.
  */
 public final class UIExecutor implements AutoCloseable {
+    @NotNull
     private final ExecutorService loomExecutor;
 
-    public UIExecutor(UI ui) {
+    public UIExecutor(@NotNull UI ui) {
         loomExecutor = Executors.newThreadPerTaskExecutor(newVirtualBuilder(ui).factory());
     }
 
@@ -35,7 +37,7 @@ public final class UIExecutor implements AutoCloseable {
      * the {@link UI#getCurrent()}.
      * @param runnable runs.
      */
-    public void loom(Runnable runnable) {
+    public void loom(@NotNull Runnable runnable) {
         Objects.requireNonNull(runnable);
         loomExecutor.submit(() -> {
             // now we're running in the virtual thread.
@@ -57,7 +59,13 @@ public final class UIExecutor implements AutoCloseable {
         loomExecutor.close();
     }
 
-    private static Thread.Builder.OfVirtual newVirtualBuilder(UI ui) {
+    /**
+     * Creates a virtual thread builder which runs continuations on the UI thread, via ui.access().
+     * @param ui run virtual thread continuations on this UI.
+     * @return the virtual thread builder
+     */
+    @NotNull
+    private static Thread.Builder.OfVirtual newVirtualBuilder(@NotNull UI ui) {
         Objects.requireNonNull(ui);
         // we'll create a virtual thread builder which runs continuations on the UI thread, via ui.access().
         try {
@@ -87,6 +95,7 @@ public final class UIExecutor implements AutoCloseable {
         }
     }
 
+    @NotNull
     private static final ConcurrentHashMap<Thread, UI> CURRENT_UI = new ConcurrentHashMap<>();
 
     /**
@@ -103,11 +112,14 @@ public final class UIExecutor implements AutoCloseable {
         }
         UI.setCurrent(ui);
         VaadinSession.setCurrent(ui.getSession());
+        // post-check: make sure everything is set correctly.
+        UIExecutor.assertUIVirtualThread();
     }
 
     /**
      * Returns the carrier thread of this virtual thread.
      */
+    @NotNull
     private static Thread currentCarrierThread() {
         try {
             final Class<?> cc = Class.forName("jdk.internal.vm.Continuation");
@@ -122,6 +134,12 @@ public final class UIExecutor implements AutoCloseable {
     public static void assertVirtualThread() {
         if (!Thread.currentThread().isVirtual()) {
             throw new IllegalStateException("This can only be called from closures run via loom()");
+        }
+    }
+    public static void assertUIVirtualThread() {
+        assertVirtualThread();
+        if (UI.getCurrent() == null) {
+            throw new IllegalStateException("UI.getCurrent() is null, this needs to be run in the Vaadin UI thread");
         }
     }
 }
