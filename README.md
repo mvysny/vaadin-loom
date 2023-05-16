@@ -29,6 +29,9 @@ on how you run, develop and package this Vaadin-Boot-based app.
 
 ## Main idea
 
+First, read [Oracle article on virtual threads](https://blogs.oracle.com/javamagazine/post/java-loom-virtual-threads-platform-threads),
+to familiarize yourself with the terminology: virtual thread, carrier thread, mounting and unmounting.
+
 The main idea is to configure JVM to somehow make virtual threads mount to the Vaadin UI threads and run from
 there. Of course there's no special UI thread per se, there are only threads currently holding the Vaadin session lock.
 To run a `Runnable` in Vaadin UI 'thread' you call `UI.access()`.
