@@ -31,10 +31,6 @@ public final class VaadinLoom implements AutoCloseable {
     /**
      * You can call this from anywhere, even from a background thread. Runs given runnable
      * in a virtual thread, with the Vaadin session lock held.
-     * <p></p>
-     * CURRENT LIMITATION: Every time you block in an unpinned way (when the virtual thread is unmounted and mounted back),
-     * you MUST call {@link #applyVaadin()} to correctly fill in
-     * the {@link UI#getCurrent()}.
      * @param runnable runs.
      */
     public void run(@NotNull Runnable runnable) {
@@ -99,10 +95,11 @@ public final class VaadinLoom implements AutoCloseable {
     private static final ConcurrentHashMap<Thread, UI> CURRENT_UI = new ConcurrentHashMap<>();
 
     /**
-     * Applies UI.getCurrent() and VaadinSession.getCurrent() to the current virtual thread. Call this
-     * every time you block in an unpinned way (when the virtual thread is unmounted and mounted back).
+     * Applies UI.getCurrent() and VaadinSession.getCurrent() to the current virtual thread. Since
+     * virtual thread doesn't inherit threadlocals from its carrier thread, we need to do this once, when
+     * the virtual thread is started.
      */
-    public static void applyVaadin() {
+    private static void applyVaadin() {
         // find out the correct UI instance from the carrier thread and set it to this thread.
         // The carrier thread holds the UI lock and is blocked running this virtual thread, therefore
         // we can conclude that the virtual thread holds the UI lock as well. Therefore,

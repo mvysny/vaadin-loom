@@ -77,9 +77,7 @@ public class MainView extends VerticalLayout {
             // See https://mvysny.github.io/vaadin-blocking-dialogs/ for more details.
             final Boolean response = responseQueue.take();
 
-            // Now we're mounted back to a Vaadin UI thread. Restore UI.current and continue.
-            VaadinLoom.applyVaadin();
-
+            // Now we're mounted back to a Vaadin UI thread.
             return response;
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
