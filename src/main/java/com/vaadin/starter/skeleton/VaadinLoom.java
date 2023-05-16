@@ -17,13 +17,13 @@ import java.util.concurrent.Executor;
  * <p></p>
  * Runs on Loom virtual threads. Obviously uses a very dark magic.
  */
-public final class UIExecutor implements AutoCloseable {
+public final class VaadinLoom implements AutoCloseable {
     @NotNull
     private final Loom loom;
     @NotNull
     private final UI ui;
 
-    public UIExecutor(@NotNull UI ui) {
+    public VaadinLoom(@NotNull UI ui) {
         loom = new Loom(newUIExecutor(ui));
         this.ui = ui;
     }
@@ -37,7 +37,7 @@ public final class UIExecutor implements AutoCloseable {
      * the {@link UI#getCurrent()}.
      * @param runnable runs.
      */
-    public void loom(@NotNull Runnable runnable) {
+    public void run(@NotNull Runnable runnable) {
         Objects.requireNonNull(runnable);
         loom.run(() -> {
             // now we're running in the virtual thread.

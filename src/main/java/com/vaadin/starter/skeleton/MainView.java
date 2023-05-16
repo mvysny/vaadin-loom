@@ -18,12 +18,12 @@ import java.util.concurrent.LinkedBlockingQueue;
  */
 @Route("")
 public class MainView extends VerticalLayout {
-    private transient UIExecutor executor;
+    private transient VaadinLoom executor;
 
     @Override
     protected void onAttach(@NotNull AttachEvent attachEvent) {
         super.onAttach(attachEvent);
-        executor = new UIExecutor(UI.getCurrent());
+        executor = new VaadinLoom(UI.getCurrent());
     }
 
     @Override
@@ -38,7 +38,7 @@ public class MainView extends VerticalLayout {
     }
 
     public MainView() {
-        add(new Button("Blocking dialog", e -> executor.loom(() -> {
+        add(new Button("Blocking dialog", e -> executor.run(() -> {
             if (confirmDialog("Are you sure")) {
                 Notification.show("Yes you're sure");
             } else {
@@ -54,7 +54,7 @@ public class MainView extends VerticalLayout {
      * @return true if the user pressed Confirm, false if the user pressed Cancel (or closed the dialog via ESC).
      */
     public static boolean confirmDialog(@NotNull String message) {
-        UIExecutor.assertUIVirtualThread();
+        VaadinLoom.assertUIVirtualThread();
 
         final BlockingQueue<Boolean> responseQueue = new LinkedBlockingQueue<>();
         final ConfirmDialog dialog = new ConfirmDialog();
@@ -78,7 +78,7 @@ public class MainView extends VerticalLayout {
             final Boolean response = responseQueue.take();
 
             // Now we're mounted back to a Vaadin UI thread. Restore UI.current and continue.
-            UIExecutor.applyVaadin();
+            VaadinLoom.applyVaadin();
 
             return response;
         } catch (InterruptedException e) {
