@@ -35,7 +35,9 @@ public final class VaadinSuspendingExecutor implements AutoCloseable {
     public void run(@NotNull Runnable runnable) {
         Objects.requireNonNull(runnable);
         suspendingExecutor.run(() -> {
-            // now we're running in the virtual thread. The UI.current is null for the virtual thread, fix that.
+            // now we're running in the virtual thread.
+            // The UI.current is null for the virtual thread since the virtual thread doesn't inherit UI.current
+            // from its carrier thread. Fix that.
             try {
                 UI.setCurrent(ui);
                 VaadinSession.setCurrent(ui.getSession());
@@ -63,20 +65,12 @@ public final class VaadinSuspendingExecutor implements AutoCloseable {
     @NotNull
     private static Executor newUIExecutor(@NotNull UI ui) {
         Objects.requireNonNull(ui);
-        // first, we'll construct an executor which runs submitted Runnables in the UI thread, via ui.access()
+        // We'll construct an executor which runs submitted Runnables in the UI thread, via ui.access()
         return command -> {
-            // "command" is a continuation which runs another piece of the virtual thread.
+            // "command" is a continuation which runs a piece of the virtual thread.
             ui.access((Command) () -> {
                 // current thread will become a carrier thread once command.run() is run;
                 // the command.run() itself will run in a virtual thread.
-
-                // This calls a JVM Continuation. Upon mounting a continuation,
-                // the current thread is switched to a virtual thread (!!). The current (carrier) thread is blocked while executing virtual thread,
-                // which means that the virtual thread also runs in the UI thread and is safe to mutate the state of the UI components.
-                //
-                // However, this crazy 'thread flip' (or mount) causes UI.getCurrent() to return null. We'll fix that by remembering the
-                // current UI for the carrier thread, then we'll look it up from the virtual thread and set it as current.
-                // CURRENT_UI is going to help us with that.
                 command.run();
             });
         };
