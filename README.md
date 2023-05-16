@@ -7,10 +7,10 @@ Read [Vaadin and Blocking Dialogs](https://mvysny.github.io/vaadin-blocking-dial
 is such a hard thing to do.
 
 Simply run `Main.java` `main()` method from your IDE. Make sure to have the following JVM
-arguments when launching Main.java:
+arguments when launching `Main.java` (in Intellij: edit launch configuration, modify options, add VM options):
 
 ```
---add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/jdk.internal.vm=ALL-UNNAMED
+--enable-preview --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/jdk.internal.vm=ALL-UNNAMED
 ```
 
 The reason is that we're hacking deep into virtual threads and we need access to JVM internal stuff.
