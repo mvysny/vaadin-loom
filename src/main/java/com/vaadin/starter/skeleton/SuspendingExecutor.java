@@ -9,7 +9,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * "Chops" a runnable into smaller parts (called continuations) and run them on given carrier thread executor.
+ * "Chops" the execution of the runnable into smaller parts (called Continuations) and run them on given carrier thread executor.
  * <p></p>
  * Whenever the Runnable execution blocks in a way that it unmounts (see
  * <a href="https://blogs.oracle.com/javamagazine/post/java-loom-virtual-threads-platform-threads">Blocking and unmounting</a> for more info),
