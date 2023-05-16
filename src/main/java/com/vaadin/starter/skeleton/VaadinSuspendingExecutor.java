@@ -16,14 +16,14 @@ import java.util.concurrent.Executor;
  * <p></p>
  * Runs on Loom virtual threads. Obviously uses a very dark magic.
  */
-public final class VaadinLoom implements AutoCloseable {
+public final class VaadinSuspendingExecutor implements AutoCloseable {
     @NotNull
-    private final Loom loom;
+    private final SuspendingExecutor suspendingExecutor;
     @NotNull
     private final UI ui;
 
-    public VaadinLoom(@NotNull UI ui) {
-        loom = new Loom(newUIExecutor(ui));
+    public VaadinSuspendingExecutor(@NotNull UI ui) {
+        suspendingExecutor = new SuspendingExecutor(newUIExecutor(ui));
         this.ui = ui;
     }
 
@@ -34,7 +34,7 @@ public final class VaadinLoom implements AutoCloseable {
      */
     public void run(@NotNull Runnable runnable) {
         Objects.requireNonNull(runnable);
-        loom.run(() -> {
+        suspendingExecutor.run(() -> {
             // now we're running in the virtual thread. The UI.current is null for the virtual thread, fix that.
             try {
                 UI.setCurrent(ui);
@@ -52,7 +52,7 @@ public final class VaadinLoom implements AutoCloseable {
 
     @Override
     public void close() throws Exception {
-        loom.close();
+        suspendingExecutor.close();
     }
 
     /**
@@ -88,7 +88,7 @@ public final class VaadinLoom implements AutoCloseable {
      * blocking operation suspends current virtual thread instead.
      */
     public static void assertUIVirtualThread() {
-        Loom.assertVirtualThread();
+        SuspendingExecutor.assertVirtualThread();
         if (UI.getCurrent() == null) {
             throw new IllegalStateException("UI.getCurrent() is null, this needs to be run in the Vaadin UI thread");
         }
