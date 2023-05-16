@@ -47,6 +47,12 @@ public class MainView extends VerticalLayout {
         })));
     }
 
+    /**
+     * Opens a confirm dialog with two buttons, Cancel and Confirm. Blocks until the
+     * user clicks either of the buttons (or closes the dialog via ESC, which counts as a cancelation).
+     * @param message the message to show in the dialog.
+     * @return true if the user pressed Confirm, false if the user pressed Cancel (or closed the dialog via ESC).
+     */
     public static boolean confirmDialog(@NotNull String message) {
         UIExecutor.assertUIVirtualThread();
 
