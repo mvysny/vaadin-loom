@@ -1,7 +1,11 @@
 package com.vaadin.starter.skeleton;
 
+import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.function.DeploymentConfiguration;
 import com.vaadin.flow.server.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * We need to hack VaadinSession.hasLock() to work with virtual threads.
@@ -27,8 +31,14 @@ public class MyServlet extends VaadinServlet {
     }
 
     private static class VirtualThreadAwareVaadinSession extends VaadinSession {
+        private static final Logger log = LoggerFactory.getLogger(VirtualThreadAwareVaadinSession.class);
         public VirtualThreadAwareVaadinSession(VaadinService service) {
             super(service);
+            setErrorHandler(e -> {
+                log.error("", e);
+                Notification.show(e.getThrowable().getMessage(), 3000, Notification.Position.MIDDLE)
+                        .addThemeVariants(NotificationVariant.LUMO_ERROR, NotificationVariant.LUMO_PRIMARY);
+            });
         }
 
         @Override

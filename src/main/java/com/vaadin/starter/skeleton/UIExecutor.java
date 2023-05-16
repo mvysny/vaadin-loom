@@ -2,6 +2,7 @@ package com.vaadin.starter.skeleton;
 
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.server.Command;
+import com.vaadin.flow.server.ErrorEvent;
 import com.vaadin.flow.server.VaadinSession;
 import org.jetbrains.annotations.NotNull;
 
@@ -23,9 +24,12 @@ import java.util.concurrent.Executors;
 public final class UIExecutor implements AutoCloseable {
     @NotNull
     private final ExecutorService loomExecutor;
+    @NotNull
+    private final UI ui;
 
     public UIExecutor(@NotNull UI ui) {
         loomExecutor = Executors.newThreadPerTaskExecutor(newVirtualBuilder(ui).factory());
+        this.ui = ui;
     }
 
     /**
@@ -41,15 +45,11 @@ public final class UIExecutor implements AutoCloseable {
         Objects.requireNonNull(runnable);
         loomExecutor.submit(() -> {
             // now we're running in the virtual thread.
-            if (!Thread.currentThread().isVirtual()) {
-                throw new IllegalStateException("Expected to be running in a virtual thread?!?");
-            }
             try {
                 applyVaadin();
                 runnable.run();
             } catch (Throwable t) {
-                // yeah yeah, this is prototype.
-                t.printStackTrace();
+                ui.getSession().getErrorHandler().error(new ErrorEvent(t));
             }
         });
     }
