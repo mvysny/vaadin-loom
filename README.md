@@ -3,6 +3,9 @@
 A prototype project which tries to implement Vaadin Blocking dialogs using the Java Project Loom.
 Uses [Vaadin Boot](https://github.com/mvysny/vaadin-boot). Requires Java 20+.
 
+Read [Vaadin and Blocking Dialogs](https://mvysny.github.io/vaadin-blocking-dialogs/) on why this
+is such a hard thing to do.
+
 Simply run `Main.java` `main()` method from your IDE. Make sure to have the following JVM
 arguments when launching Main.java:
 

@@ -13,7 +13,11 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * Executes Loom virtual threads in Vaadin UI thread.
+ * Executes UI code in Vaadin UI thread, but in a very special way: when the code blocks,
+ * all UI changes are rendered in the browser, and the UI thread is not blocked. You can
+ * wait for a button click and unblock the code block to execute further.
+ * <p></p>
+ * Runs on Loom virtual threads. Obviously uses a very dark magic.
  */
 public final class UIExecutor implements AutoCloseable {
     private final ExecutorService loomExecutor;
