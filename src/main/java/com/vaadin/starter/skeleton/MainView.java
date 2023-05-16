@@ -32,6 +32,7 @@ public class MainView extends VerticalLayout {
         } catch (Exception e) {
             e.printStackTrace();
         }
+        executor = null;
         super.onDetach(detachEvent);
     }
 
