@@ -13,7 +13,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 /**
- * The main view contains a button and a click listener.
+ * Demoes the blocking dialog.
  */
 @Route("")
 public class MainView extends VerticalLayout {
