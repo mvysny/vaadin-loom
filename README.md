@@ -17,7 +17,22 @@ The reason is that we're hacking deep into virtual threads and we need access to
 This is not even alpha quality. If it works, it works just by a random coincidence. I'm just hacking
 deep into virtual threads, without really knowing what I'm really doing. Prototype quality.
 
+This is obviously bloody dark magic.
+
 # Documentation
 
 Please see the [Vaadin Boot](https://github.com/mvysny/vaadin-boot#preparing-environment) documentation
 on how you run, develop and package this Vaadin-Boot-based app.
+
+## Main idea
+
+The main idea is to configure JVM to somehow make virtual threads mount to the Vaadin UI threads and run from
+there. Of course there's no special UI thread per se, there are only threads currently holding the Vaadin session lock.
+To run a `Runnable` in Vaadin UI 'thread' you call `UI.access()`.
+
+Project Loom allows us to run code in a virtual thread. Virtual thread runs the code as a series
+of continuations, each continuation running a piece of code until it blocks. Continuation is ultimately a `Runnable`.
+
+We'll run Continuation `Runnables` via `UI.access()`.
+
+I repeat. This is obviously bloody dark magic.
