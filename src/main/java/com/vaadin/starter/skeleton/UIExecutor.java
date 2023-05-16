@@ -6,16 +6,12 @@ import com.vaadin.flow.server.ErrorEvent;
 import com.vaadin.flow.server.VaadinSession;
 import org.jetbrains.annotations.NotNull;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Method;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 /**
- * Executes UI code in Vaadin UI thread, but in a very special way: when the code blocks,
+ * Executes Runnables in Vaadin UI thread, but in a very special way: when the code blocks,
  * all UI changes are rendered in the browser, and the UI thread is not blocked. You can
  * wait for a button click and unblock the code block to execute further.
  * <p></p>
@@ -23,12 +19,12 @@ import java.util.concurrent.Executors;
  */
 public final class UIExecutor implements AutoCloseable {
     @NotNull
-    private final ExecutorService loomExecutor;
+    private final Loom loom;
     @NotNull
     private final UI ui;
 
     public UIExecutor(@NotNull UI ui) {
-        loomExecutor = Executors.newThreadPerTaskExecutor(newVirtualBuilder(ui).factory());
+        loom = new Loom(newUIExecutor(ui));
         this.ui = ui;
     }
 
@@ -43,7 +39,7 @@ public final class UIExecutor implements AutoCloseable {
      */
     public void loom(@NotNull Runnable runnable) {
         Objects.requireNonNull(runnable);
-        loomExecutor.submit(() -> {
+        loom.run(() -> {
             // now we're running in the virtual thread.
             try {
                 applyVaadin();
@@ -56,16 +52,16 @@ public final class UIExecutor implements AutoCloseable {
 
     @Override
     public void close() throws Exception {
-        loomExecutor.close();
+        loom.close();
     }
 
     /**
-     * Creates a virtual thread builder which runs continuations on the UI thread, via ui.access().
-     * @param ui run virtual thread continuations on this UI.
-     * @return the virtual thread builder
+     * Runs all Runnables on the UI thread. No virtual thread magic happens here - the Runnables are run until they terminate.
+     * @param ui run the runnables on this UI.
+     * @return the executor.
      */
     @NotNull
-    private static Thread.Builder.OfVirtual newVirtualBuilder(@NotNull UI ui) {
+    private static Executor newUIExecutor(@NotNull UI ui) {
         Objects.requireNonNull(ui);
         // we'll create a virtual thread builder which runs continuations on the UI thread, via ui.access().
 
@@ -92,16 +88,7 @@ public final class UIExecutor implements AutoCloseable {
             });
         };
 
-        // construct a specialized virtual thread builder which runs continuations on uiExecutor
-        try {
-            final Class<?> vtbclass = Class.forName("java.lang.ThreadBuilders$VirtualThreadBuilder");
-            final Constructor<?> c = vtbclass.getDeclaredConstructor(Executor.class);
-            c.setAccessible(true);
-            final Thread.Builder.OfVirtual vtb = (Thread.Builder.OfVirtual) c.newInstance(uiExecutor);
-            return vtb;
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        return uiExecutor;
     }
 
     /**
@@ -120,7 +107,7 @@ public final class UIExecutor implements AutoCloseable {
         // The carrier thread holds the UI lock and is blocked running this virtual thread, therefore
         // we can conclude that the virtual thread holds the UI lock as well. Therefore,
         // there's no need to lock the UI lock again.
-        final Thread carrierThread = currentCarrierThread();
+        final Thread carrierThread = Loom.getCurrentCarrierThread();
         // the carrier thread has the current UIs set properly.
         UI ui = CURRENT_UI.get(carrierThread);
         if (ui == null) {
@@ -134,37 +121,12 @@ public final class UIExecutor implements AutoCloseable {
     }
 
     /**
-     * Returns the carrier thread of this virtual thread.
-     */
-    @NotNull
-    private static Thread currentCarrierThread() {
-        assertVirtualThread();
-        try {
-            final Class<?> cc = Class.forName("jdk.internal.vm.Continuation");
-            final Method m = cc.getDeclaredMethod("currentCarrierThread");
-            m.setAccessible(true);
-            return ((Thread) m.invoke(null));
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    /**
-     * Asserts that this thread is a virtual one.
-     */
-    private static void assertVirtualThread() {
-        if (!Thread.currentThread().isVirtual()) {
-            throw new IllegalStateException("This can only be called from closures run via loom()");
-        }
-    }
-
-    /**
      * Asserts that this thread is a virtual thread which is run in the Vaadin UI thread.
      * It's useful to assert this before attempting to block, to make sure the
      * blocking operation suspends current virtual thread instead.
      */
     public static void assertUIVirtualThread() {
-        assertVirtualThread();
+        Loom.assertVirtualThread();
         if (UI.getCurrent() == null) {
             throw new IllegalStateException("UI.getCurrent() is null, this needs to be run in the Vaadin UI thread");
         }
