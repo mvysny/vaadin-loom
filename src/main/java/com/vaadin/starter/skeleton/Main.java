@@ -9,6 +9,6 @@ import org.jetbrains.annotations.NotNull;
  */
 public final class Main {
     public static void main(@NotNull String[] args) throws Exception {
-        new VaadinBoot().run();
+        new VaadinBoot().withServlet(MyServlet.class).run();
     }
 }

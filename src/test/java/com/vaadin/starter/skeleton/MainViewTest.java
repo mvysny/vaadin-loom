@@ -74,6 +74,8 @@ public class MainViewTest {
         // simulate a button click as if clicked by the user
         _click(_get(Button.class, spec -> spec.withText("Blocking dialog")));
 
+        MockVaadin.clientRoundtrip();
+
         _assertOne(ConfirmDialog.class);
         ConfirmDialogKt._fireConfirm(_get(ConfirmDialog.class));
 
