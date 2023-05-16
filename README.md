@@ -20,6 +20,9 @@ The reason is that we're hacking deep into virtual threads and we need access to
 This is not even alpha quality. If it works, it works just by a random coincidence. I'm just hacking
 deep into virtual threads, without really knowing what I'm really doing. Prototype quality.
 
+I don't even know whether this works on any other Java than the one I'm running ([Eclipse Temurin JDK 20](https://projects.eclipse.org/projects/adoptium.temurin)).
+The project may fail on other JVMs. Or maybe not :)
+
 This is obviously bloody dark magic.
 
 # Documentation
