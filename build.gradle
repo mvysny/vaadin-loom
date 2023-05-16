@@ -49,7 +49,7 @@ test {
 application {
     mainClassName = "com.vaadin.starter.skeleton.Main"
     // we are going really low-level here.
-    applicationDefaultJvmArgs = ["--enable-preview", '--add-opens', 'java.base/java.lang=ALL-UNNAMED', '--add-opens', 'java.base/jdk.internal.vm=ALL-UNNAMED']
+    applicationDefaultJvmArgs = ["--enable-preview", '--add-opens', 'java.base/java.lang=ALL-UNNAMED']
 }
 
 tasks.withType(JavaCompile) {
@@ -57,9 +57,9 @@ tasks.withType(JavaCompile) {
 }
 
 tasks.withType(Test) {
-    jvmArgs += ["--enable-preview", '--add-opens', 'java.base/java.lang=ALL-UNNAMED', '--add-opens', 'java.base/jdk.internal.vm=ALL-UNNAMED']
+    jvmArgs += ["--enable-preview", '--add-opens', 'java.base/java.lang=ALL-UNNAMED']
 }
 
 tasks.withType(JavaExec) {
-    jvmArgs += ["--enable-preview", '--add-opens', 'java.base/java.lang=ALL-UNNAMED', '--add-opens', 'java.base/jdk.internal.vm=ALL-UNNAMED']
+    jvmArgs += ["--enable-preview", '--add-opens', 'java.base/java.lang=ALL-UNNAMED']
 }

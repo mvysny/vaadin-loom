@@ -10,7 +10,7 @@ Simply run `Main.java` `main()` method from your IDE. Make sure to have the foll
 arguments when launching `Main.java` (in Intellij: edit launch configuration, modify options, add VM options):
 
 ```
---enable-preview --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/jdk.internal.vm=ALL-UNNAMED
+--enable-preview --add-opens java.base/java.lang=ALL-UNNAMED
 ```
 
 The reason is that we're hacking deep into virtual threads and we need access to JVM internal stuff.
