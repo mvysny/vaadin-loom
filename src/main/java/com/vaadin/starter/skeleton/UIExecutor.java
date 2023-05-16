@@ -22,11 +22,27 @@ public final class UIExecutor implements AutoCloseable {
         loomExecutor = Executors.newThreadPerTaskExecutor(newVirtualBuilder(ui).factory());
     }
 
+    /**
+     * You can call this from anywhere, even from a background thread. Runs given runnable
+     * in a virtual thread, with the Vaadin session lock held.
+     * <p></p>
+     * CURRENT LIMITATION: Every time you block in an unpinned way (when the virtual thread is unmounted and mounted back),
+     * you MUST call {@link #applyVaadin()} to correctly fill in
+     * the {@link UI#getCurrent()}.
+     * @param runnable runs.
+     */
     public void loom(Runnable runnable) {
+        Objects.requireNonNull(runnable);
         loomExecutor.submit(() -> {
+            // now we're running in the virtual thread.
+            if (!Thread.currentThread().isVirtual()) {
+                throw new IllegalStateException("Expected to be running in a virtual thread?!?");
+            }
             try {
+                applyVaadin();
                 runnable.run();
             } catch (Throwable t) {
+                // yeah yeah, this is prototype.
                 t.printStackTrace();
             }
         });
@@ -70,7 +86,8 @@ public final class UIExecutor implements AutoCloseable {
     private static final ConcurrentHashMap<Thread, UI> CURRENT_UI = new ConcurrentHashMap<>();
 
     /**
-     * Applies UI.getCurrent() and VaadinSession.getCurrent() to the current virtual thread.
+     * Applies UI.getCurrent() and VaadinSession.getCurrent() to the current virtual thread. Call this
+     * every time you block in an unpinned way (when the virtual thread is unmounted and mounted back).
      */
     public static void applyVaadin() {
         if (!Thread.currentThread().isVirtual()) {

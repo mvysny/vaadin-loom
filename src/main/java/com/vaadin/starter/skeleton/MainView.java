@@ -8,7 +8,6 @@ import com.vaadin.flow.component.confirmdialog.ConfirmDialog;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.Route;
-import com.vaadin.flow.server.VaadinSession;
 
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -38,13 +37,6 @@ public class MainView extends VerticalLayout {
 
     public MainView() {
         add(new Button("Blocking dialog", e -> executor.loom(() -> {
-            System.out.println(UI.getCurrent());
-            System.out.println(VaadinSession.getCurrent());
-            System.out.println(Thread.currentThread());
-            UIExecutor.applyVaadin();
-            System.out.println(UI.getCurrent());
-            System.out.println(VaadinSession.getCurrent());
-            System.out.println(Thread.currentThread());
             if (confirmDialog("Are you sure")) {
                 Notification.show("Yes you're sure");
             } else {
@@ -61,11 +53,9 @@ public class MainView extends VerticalLayout {
         dialog.setCancelable(true);
         dialog.addCancelListener(e -> responseQueue.add(false));
         dialog.open();
-        System.out.println("DIALOG IS OPENED, GOING TO BLOCK");
         try {
             final Boolean response = responseQueue.take();
             UIExecutor.applyVaadin();
-            System.out.println("GOT RESPONSE " + response);
             dialog.close();
             return response;
         } catch (InterruptedException e) {
