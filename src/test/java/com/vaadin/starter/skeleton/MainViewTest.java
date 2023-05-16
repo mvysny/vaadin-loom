@@ -2,11 +2,11 @@ package com.vaadin.starter.skeleton;
 
 import com.github.mvysny.kaributesting.v10.MockVaadin;
 import com.github.mvysny.kaributesting.v10.Routes;
+import com.github.mvysny.kaributesting.v10.mock.MockedUI;
 import com.github.mvysny.kaributesting.v10.pro.ConfirmDialogKt;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.confirmdialog.ConfirmDialog;
-import com.vaadin.flow.component.textfield.TextField;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -42,7 +42,7 @@ public class MainViewTest {
     public void setupVaadin() {
         // MockVaadin.setup() registers all @Routes, prepares the Vaadin instances for us
         // (the UI, the VaadinSession, VaadinRequest, VaadinResponse, ...) and navigates to the root route.
-        MockVaadin.setup(routes);
+        MockVaadin.setup(MockedUI::new, new MockVirtualThreadAwareServlet(routes));
     }
 
     @AfterEach
@@ -73,8 +73,6 @@ public class MainViewTest {
     public void testBlockingDialog() {
         // simulate a button click as if clicked by the user
         _click(_get(Button.class, spec -> spec.withText("Blocking dialog")));
-
-        MockVaadin.clientRoundtrip();
 
         _assertOne(ConfirmDialog.class);
         ConfirmDialogKt._fireConfirm(_get(ConfirmDialog.class));
