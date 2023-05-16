@@ -3,7 +3,6 @@ package com.vaadin.starter.skeleton;
 import org.jetbrains.annotations.NotNull;
 
 import java.lang.reflect.Constructor;
-import java.lang.reflect.Method;
 import java.util.Objects;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
@@ -41,22 +40,6 @@ public final class Loom implements AutoCloseable {
     public void run(@NotNull Runnable runnable) {
         Objects.requireNonNull(runnable);
         virtualThreadExecutor.submit(runnable);
-    }
-
-    /**
-     * Returns the carrier thread of this virtual thread.
-     */
-    @NotNull
-    static Thread getCurrentCarrierThread() {
-        assertVirtualThread();
-        try {
-            final Class<?> cc = Class.forName("jdk.internal.vm.Continuation");
-            final Method m = cc.getDeclaredMethod("currentCarrierThread");
-            m.setAccessible(true);
-            return ((Thread) m.invoke(null));
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
     }
 
     /**
