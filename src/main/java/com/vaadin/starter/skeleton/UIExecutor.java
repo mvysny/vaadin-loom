@@ -94,9 +94,7 @@ public final class UIExecutor implements AutoCloseable {
      * every time you block in an unpinned way (when the virtual thread is unmounted and mounted back).
      */
     public static void applyVaadin() {
-        if (!Thread.currentThread().isVirtual()) {
-            throw new IllegalStateException("This can only be called from closures run via loom()");
-        }
+        assertVirtualThread();
         final Thread carrierThread = currentCarrierThread();
         // the carrier thread has the current UIs set properly.
         UI ui = CURRENT_UI.get(carrierThread);
@@ -118,6 +116,12 @@ public final class UIExecutor implements AutoCloseable {
             return ((Thread) m.invoke(null));
         } catch (Exception e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    public static void assertVirtualThread() {
+        if (!Thread.currentThread().isVirtual()) {
+            throw new IllegalStateException("This can only be called from closures run via loom()");
         }
     }
 }

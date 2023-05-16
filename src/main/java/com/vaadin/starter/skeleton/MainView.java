@@ -17,7 +17,7 @@ import java.util.concurrent.LinkedBlockingQueue;
  */
 @Route("")
 public class MainView extends VerticalLayout {
-    private UIExecutor executor;
+    private transient UIExecutor executor;
 
     @Override
     protected void onAttach(AttachEvent attachEvent) {
@@ -46,6 +46,8 @@ public class MainView extends VerticalLayout {
     }
 
     public static boolean confirmDialog(String message) {
+        UIExecutor.assertVirtualThread();
+
         final BlockingQueue<Boolean> responseQueue = new LinkedBlockingQueue<>();
         final ConfirmDialog dialog = new ConfirmDialog();
         dialog.setText(message);
