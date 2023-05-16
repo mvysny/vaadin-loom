@@ -73,7 +73,9 @@ public final class UIExecutor implements AutoCloseable {
             final Constructor<?> c = vtbclass.getDeclaredConstructor(Executor.class);
             c.setAccessible(true);
             Thread.Builder.OfVirtual vtb = (Thread.Builder.OfVirtual) c.newInstance((Executor) command -> {
+                // "command" is a continuation which runs another piece of the virtual thread.
                 ui.access((Command) () -> {
+                    // current thread will become a carrier thread once command.run() is run.
                     CURRENT_UI.put(Thread.currentThread(), UI.getCurrent());
                     try {
                         // This calls a JVM Continuation. Upon mounting a continuation,
@@ -95,6 +97,9 @@ public final class UIExecutor implements AutoCloseable {
         }
     }
 
+    /**
+     * Maps a carrier thread to the Vaadin UI which currently holds session lock in that carrier thread.
+     */
     @NotNull
     private static final ConcurrentHashMap<Thread, UI> CURRENT_UI = new ConcurrentHashMap<>();
 
