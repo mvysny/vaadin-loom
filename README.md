@@ -15,6 +15,8 @@ arguments when launching `Main.java` (in Intellij: edit launch configuration, mo
 
 The reason is that we're hacking deep into virtual threads and we need access to JVM internal stuff.
 
+See the [live demo running on v-herd](https://v-herd.eu/vaadin-loom/).
+
 # Warning
 
 This is not even alpha quality. If it works, it works just by a random coincidence. I'm just hacking
