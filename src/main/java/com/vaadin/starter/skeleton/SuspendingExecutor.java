@@ -11,22 +11,25 @@ import java.util.concurrent.Executors;
 /**
  * "Chops" a runnable into smaller parts (called continuations) and run them on given carrier thread executor.
  * <p></p>
- * Whenever the Runnable execution blocks , the continuation ends - the virtual thread unmounts from
- * the carrier thread, allowing it to finish. When the runnable is unblocked,
+ * Whenever the Runnable execution blocks in a way that it unmounts (see
+ * <a href="https://blogs.oracle.com/javamagazine/post/java-loom-virtual-threads-platform-threads">Blocking and unmounting</a> for more info),
+ * it "suspends" - the virtual thread stops execution and unmounts from
+ * the carrier thread, allowing the carrier thread Runnable to finish. When the Runnable execution unblocks,
  * a new continuation is passed into the carrier thread executor, and the virtual thread mounts on top of a carrier thread.
  */
 public final class SuspendingExecutor implements AutoCloseable {
     /**
-     * Runs runnables in virtual threads. Configured to emit continuations to the underlying carrier
+     * Runs Runnables in virtual threads. Emits 'continuation' as Runnables to the underlying carrier
      * thread executor.
      */
     @NotNull
     private final ExecutorService virtualThreadExecutor;
 
     /**
-     * Creates the loom.
-     * @param executor The carrier thread executor - executes given Continuations on an actual OS thread (called a carrier thread). No magic happens in this executor - the
-     * runnables are run until they're terminated.
+     * Creates the suspending executor.
+     * @param executor The carrier thread executor - executes given Runnables (Continuations) on an actual OS thread
+     *                 (called a carrier thread). No magic happens in this executor - the
+     *                 runnables are run until they're terminated.
      */
     public SuspendingExecutor(@NotNull Executor executor) {
         virtualThreadExecutor = Executors.newThreadPerTaskExecutor(newVirtualBuilder(executor).factory());
