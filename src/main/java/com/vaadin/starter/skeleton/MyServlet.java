@@ -7,6 +7,8 @@ import com.vaadin.flow.server.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.locks.ReentrantLock;
+
 /**
  * We need to hack VaadinSession.hasLock() to work with virtual threads.
  */
@@ -35,7 +37,7 @@ public class MyServlet extends VaadinServlet {
         public VirtualThreadAwareVaadinSession(VaadinService service) {
             super(service);
             setErrorHandler(e -> {
-                log.error("", e);
+                log.error("Uncaught error", e.getThrowable());
                 Notification.show(e.getThrowable().getMessage(), 3000, Notification.Position.MIDDLE)
                         .addThemeVariants(NotificationVariant.LUMO_ERROR, NotificationVariant.LUMO_PRIMARY);
             });
@@ -44,10 +46,10 @@ public class MyServlet extends VaadinServlet {
         @Override
         public boolean hasLock() {
             if (Thread.currentThread().isVirtual()) {
-                // not possible?
+                // not possible
                 // ((ReentrantLock) getLockInstance()).isHeldByThread(UIExecutor.currentCarrierThread());
 
-                // workaround: return true
+                // workaround for now: just return true
                 return true;
             }
             return super.hasLock();
