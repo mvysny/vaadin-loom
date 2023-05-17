@@ -53,8 +53,9 @@ public class MockVirtualThreadAwareServlet extends MockVaadinServlet {
                 // not possible?
                 // ((ReentrantLock) getLockInstance()).isHeldByThread(UIExecutor.currentCarrierThread());
 
-                // workaround: return true
-                return true;
+                // if the current session is this one, it has been set in VaadinSuspendingExecutor, which means
+                // that we have the session lock.
+                return VaadinSession.getCurrent() == this;
             }
             return super.hasLock();
         }
