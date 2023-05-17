@@ -11,6 +11,7 @@ import com.vaadin.flow.router.Route;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
 
 /**
@@ -39,7 +40,7 @@ public class MainView extends VerticalLayout {
 
     public MainView() {
         add(new Button("Blocking dialog", e -> executor.run(() -> {
-            if (confirmDialog("Are you sure")) {
+            if (confirmDialog("Are you sure?")) {
                 Notification.show("Yes you're sure");
             } else {
                 Notification.show("Nope, not sure");
@@ -56,12 +57,12 @@ public class MainView extends VerticalLayout {
     public static boolean confirmDialog(@NotNull String message) {
         VaadinSuspendingExecutor.assertUIVirtualThread();
 
-        final BlockingQueue<Boolean> responseQueue = new LinkedBlockingQueue<>();
+        final CompletableFuture<Boolean> responseQueue = new CompletableFuture<>();
         final ConfirmDialog dialog = new ConfirmDialog();
         dialog.setText(message);
-        dialog.addConfirmListener(e -> responseQueue.add(true));
+        dialog.addConfirmListener(e -> responseQueue.complete(true));
         dialog.setCancelable(true);
-        dialog.addCancelListener(e -> responseQueue.add(false));
+        dialog.addCancelListener(e -> responseQueue.complete(false));
         dialog.open();
         try {
             // Await until the user clicks a button, which adds a value to the responseQueue.
@@ -75,11 +76,12 @@ public class MainView extends VerticalLayout {
             //
             // If this was not a virtual thread, this would obviously block endlessly and would not draw any dialog.
             // See https://mvysny.github.io/vaadin-blocking-dialogs/ for more details.
-            final Boolean response = responseQueue.take();
+            final boolean response = responseQueue.get();
 
-            // Now we're mounted back to a Vaadin UI thread.
+            // Now we're mounted back to a Vaadin UI thread. Close the dialog, return the response
+            // and continue with the UI code.
             return response;
-        } catch (InterruptedException e) {
+        } catch (Exception e) {
             throw new RuntimeException(e);
         } finally {
             dialog.close();
