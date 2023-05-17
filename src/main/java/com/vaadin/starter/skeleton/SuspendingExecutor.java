@@ -37,7 +37,7 @@ public final class SuspendingExecutor implements AutoCloseable {
     }
 
     /**
-     * Runs given runnable in a virtual thread. The code is split into smaller pieces (called continuations)
+     * Runs given runnable in a virtual thread. The actual code execution is "split into smaller pieces" (called continuations)
      * and executed on the carrier thread executor.
      * @param runnable the runnable, not null. Run in a virtual thread.
      */
