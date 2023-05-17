@@ -48,6 +48,7 @@ public class MyServlet extends VaadinServlet {
             if (Thread.currentThread().isVirtual()) {
                 // not possible
                 // ((ReentrantLock) getLockInstance()).isHeldByThread(UIExecutor.currentCarrierThread());
+                // perhaps we can keep track of the carrier threads?
 
                 // workaround for now: just return true
                 return true;

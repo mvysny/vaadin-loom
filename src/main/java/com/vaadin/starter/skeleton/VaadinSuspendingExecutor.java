@@ -14,7 +14,7 @@ import java.util.concurrent.Executor;
  * all UI changes are rendered in the browser, and the UI thread is not blocked. You can
  * wait for a button click and unblock the code block to execute further.
  * <p></p>
- * Runs on Loom virtual threads. Obviously uses a very dark magic.
+ * Runs on Java Virtual Threads (AKA Project Loom).
  */
 public final class VaadinSuspendingExecutor implements AutoCloseable {
     @NotNull
@@ -23,14 +23,18 @@ public final class VaadinSuspendingExecutor implements AutoCloseable {
     private final UI ui;
 
     public VaadinSuspendingExecutor(@NotNull UI ui) {
-        suspendingExecutor = new SuspendingExecutor(newUIExecutor(ui));
+        // the carrier threads will always execute with Vaadin Session lock held, and with a non-null UI.current
+        suspendingExecutor = new SuspendingExecutor(new UIExecutor(ui));
         this.ui = ui;
     }
 
     /**
-     * You can call this from anywhere, even from a background thread. Runs given runnable
-     * in a virtual thread, with the Vaadin session lock held.
-     * @param runnable runs.
+     * You can call this from anywhere, even from a background thread. Runs given Runnable
+     * with the Vaadin session lock held. The Runnable is run in a virtual thread,
+     * which means that the runnable may block. When it does, all changes done to the Vaadin
+     * components are transmitted to the client-side. Upon unblocking, the runnable
+     * continues its execution in the Vaadin UI thread.
+     * @param runnable the code block to run.
      */
     public void run(@NotNull Runnable runnable) {
         Objects.requireNonNull(runnable);
@@ -44,7 +48,7 @@ public final class VaadinSuspendingExecutor implements AutoCloseable {
                 // post-check: make sure everything is set correctly.
                 assertUIVirtualThread();
 
-                // there. Now we can run the code.
+                // Perfect. Now we can run the code.
                 runnable.run();
             } catch (Throwable t) {
                 ui.getSession().getErrorHandler().error(new ErrorEvent(t));
@@ -58,25 +62,6 @@ public final class VaadinSuspendingExecutor implements AutoCloseable {
     }
 
     /**
-     * Runs all Runnables on the UI thread. No virtual thread magic happens here - the Runnables are run until they terminate.
-     * @param ui run the runnables on this UI.
-     * @return the executor.
-     */
-    @NotNull
-    private static Executor newUIExecutor(@NotNull UI ui) {
-        Objects.requireNonNull(ui);
-        // We'll construct an executor which runs submitted Runnables in the UI thread, via ui.access()
-        return command -> {
-            // "command" is a continuation which runs a piece of the virtual thread.
-            ui.access((Command) () -> {
-                // current thread will become a carrier thread once command.run() is run;
-                // the command.run() itself will run in a virtual thread.
-                command.run();
-            });
-        };
-    }
-
-    /**
      * Asserts that this thread is a virtual thread which is run in the Vaadin UI thread.
      * It's useful to assert this before attempting to block, to make sure the
      * blocking operation suspends current virtual thread instead.
@@ -85,6 +70,24 @@ public final class VaadinSuspendingExecutor implements AutoCloseable {
         SuspendingExecutor.assertVirtualThread();
         if (UI.getCurrent() == null) {
             throw new IllegalStateException("UI.getCurrent() is null, this needs to be run in the Vaadin UI thread");
+        }
+    }
+
+    /**
+     * Executor which runs submitted Runnables in the Vaadin UI thread, via {@link UI#access(Command)}.
+     * No virtual thread magic happens here - the Runnables are run until they terminate.
+     */
+    private static class UIExecutor implements Executor {
+        @NotNull
+        private final UI ui;
+
+        public UIExecutor(@NotNull UI ui) {
+            this.ui = Objects.requireNonNull(ui);
+        }
+
+        @Override
+        public void execute(@NotNull Runnable command) {
+            ui.access((Command) command::run);
         }
     }
 }

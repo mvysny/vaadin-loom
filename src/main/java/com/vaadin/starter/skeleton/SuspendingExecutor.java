@@ -10,6 +10,7 @@ import java.util.concurrent.Executors;
 
 /**
  * "Chops" the execution of the runnable into smaller parts (called Continuations) and run them on given carrier thread executor.
+ * Runs on Java Virtual Threads (AKA Project Loom).
  * <p></p>
  * Whenever the Runnable execution blocks in a way that it unmounts (see
  * <a href="https://blogs.oracle.com/javamagazine/post/java-loom-virtual-threads-platform-threads">Blocking and unmounting</a> for more info),
@@ -38,7 +39,7 @@ public final class SuspendingExecutor implements AutoCloseable {
     /**
      * Runs given runnable in a virtual thread. The code is split into smaller pieces (called continuations)
      * and executed on the carrier thread executor.
-     * @param runnable the runnable, not null.
+     * @param runnable the runnable, not null. Run in a virtual thread.
      */
     public void run(@NotNull Runnable runnable) {
         Objects.requireNonNull(runnable);
