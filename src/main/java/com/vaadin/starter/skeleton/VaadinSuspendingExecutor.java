@@ -43,8 +43,8 @@ public final class VaadinSuspendingExecutor implements AutoCloseable {
             // The UI.current is null for the virtual thread since the virtual thread doesn't inherit UI.current
             // from its carrier thread. Fix that.
             try {
-                UI.setCurrent(ui);
                 VaadinSession.setCurrent(ui.getSession());
+                UI.setCurrent(ui);
                 // post-check: make sure everything is set correctly.
                 assertUIVirtualThread();
 
@@ -52,6 +52,10 @@ public final class VaadinSuspendingExecutor implements AutoCloseable {
                 runnable.run();
             } catch (Throwable t) {
                 ui.getSession().getErrorHandler().error(new ErrorEvent(t));
+            } finally {
+                // clean up current instances so that they can be GCed if needed.
+                UI.setCurrent(null);
+                VaadinSession.setCurrent(null);
             }
         });
     }

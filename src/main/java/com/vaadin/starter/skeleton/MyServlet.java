@@ -48,10 +48,10 @@ public class MyServlet extends VaadinServlet {
             if (Thread.currentThread().isVirtual()) {
                 // not possible
                 // ((ReentrantLock) getLockInstance()).isHeldByThread(UIExecutor.currentCarrierThread());
-                // perhaps we can keep track of the carrier threads?
 
-                // workaround for now: just return true
-                return true;
+                // if the current session is this one, it has been set in VaadinSuspendingExecutor, which means
+                // that we have the session lock.
+                return VaadinSession.getCurrent() == this;
             }
             return super.hasLock();
         }
