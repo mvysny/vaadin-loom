@@ -10,9 +10,7 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.Route;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.LinkedBlockingQueue;
 
 /**
  * Demoes the blocking dialog.
@@ -57,26 +55,26 @@ public class MainView extends VerticalLayout {
     public static boolean confirmDialog(@NotNull String message) {
         VaadinSuspendingExecutor.assertUIVirtualThread();
 
-        final CompletableFuture<Boolean> responseQueue = new CompletableFuture<>();
+        final CompletableFuture<Boolean> responseFuture = new CompletableFuture<>();
         final ConfirmDialog dialog = new ConfirmDialog();
         dialog.setText(message);
-        dialog.addConfirmListener(e -> responseQueue.complete(true));
+        dialog.addConfirmListener(e -> responseFuture.complete(true));
         dialog.setCancelable(true);
-        dialog.addCancelListener(e -> responseQueue.complete(false));
+        dialog.addCancelListener(e -> responseFuture.complete(false));
         dialog.open();
         try {
-            // Await until the user clicks a button, which adds a value to the responseQueue.
+            // Await until the user clicks a button, which adds a value to the responseFuture.
             // This only works with virtual threads.
             //
             // Since this is virtual thread, take() unmounts instead of blocking the current thread.
             // See https://blogs.oracle.com/javamagazine/post/java-loom-virtual-threads-platform-threads for more details on the virtual thread basics.
             // That means that while we're 'blocked' in take(), Vaadin UI thread is allowed to finish and render the dialog.
-            // On button click, value is added to the responseQueue which wakes up this virtual thread.
+            // On button click, value is added to the responseFuture which wakes up this virtual thread.
             // This virtual thread mounts to a Vaadin UI thread and continues execution.
             //
             // If this was not a virtual thread, this would obviously block endlessly and would not draw any dialog.
             // See https://mvysny.github.io/vaadin-blocking-dialogs/ for more details.
-            final boolean response = responseQueue.get();
+            final boolean response = responseFuture.get();
 
             // Now we're mounted back to a Vaadin UI thread. Close the dialog, return the response
             // and continue with the UI code.
