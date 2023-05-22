@@ -71,7 +71,7 @@ public final class VaadinSuspendingExecutor implements AutoCloseable {
      * blocking operation suspends current virtual thread instead.
      */
     public static void assertUIVirtualThread() {
-        SuspendingExecutor.assertVirtualThread();
+        LoomUtils.assertVirtualThread();
         if (UI.getCurrent() == null) {
             throw new IllegalStateException("UI.getCurrent() is null, this needs to be run in the Vaadin UI thread");
         }

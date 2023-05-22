@@ -68,7 +68,7 @@ public final class ContinuationInvoker {
                 continuationsInvoked.incrementAndGet();
                 command.run();
             };
-            final ThreadFactory virtualThreadFactory = SuspendingExecutor.newVirtualBuilder(synchronousExecutor).factory();
+            final ThreadFactory virtualThreadFactory = LoomUtils.newVirtualBuilder(synchronousExecutor).factory();
             final Thread thread = virtualThreadFactory.newThread(() -> {
                 try {
                     runnable.run();
