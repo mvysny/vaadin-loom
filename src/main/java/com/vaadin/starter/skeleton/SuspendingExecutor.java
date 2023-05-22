@@ -61,7 +61,7 @@ public final class SuspendingExecutor implements AutoCloseable {
      * @return the virtual thread builder
      */
     @NotNull
-    private static Thread.Builder.OfVirtual newVirtualBuilder(@NotNull Executor executor) {
+    public static Thread.Builder.OfVirtual newVirtualBuilder(@NotNull Executor executor) {
         Objects.requireNonNull(executor);
 
         // construct a specialized virtual thread builder which runs continuations on uiExecutor
