@@ -72,11 +72,30 @@ public final class Iterators  {
 
         /**
          * Generate an item. The item is immediately returned via {@link Iterator#next()}.
-         * @param item the item to return, may be null.
+         * @param item the item to be returned by the iterator, may be null.
          */
         public void yield(@Nullable E item) {
             availableItems.add(item);
             continuationInvoker.suspend();
+        }
+
+        /**
+         * Generate a couple of items at the same time. The first item is immediately returned via {@link Iterator#next()}.
+         * @param items the items to be returned by the iterator.
+         */
+        public void yield(@Nullable E... items) {
+            yieldAll(Arrays.asList(items));
+        }
+
+        /**
+         * Generate an item. The item is immediately returned via {@link Iterator#next()}.
+         * @param items the items to be returned by the iterator.
+         */
+        public void yieldAll(@NotNull Collection<E> items) {
+            if (!items.isEmpty()) {
+                availableItems.addAll(items);
+                continuationInvoker.suspend();
+            }
         }
     }
 
@@ -104,6 +123,9 @@ public final class Iterators  {
         final ContinuationInvoker continuationInvoker = new ContinuationInvoker(() -> generator.accept(yielder));
         yielder.continuationInvoker = continuationInvoker;
         final Supplier<E> itemSupplier = () -> {
+            if (!yielder.availableItems.isEmpty()) {
+                return yielder.availableItems.remove();
+            }
             // run the next continuation. The continuation stops when called yield(),
             // therefore Yielder.availableItems will have at most 1 item.
             final boolean hasMoreContinuations = continuationInvoker.next();

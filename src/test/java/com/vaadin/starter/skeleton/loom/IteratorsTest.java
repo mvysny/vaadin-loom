@@ -35,14 +35,23 @@ public class IteratorsTest {
     }
 
     @Test
+    public void testIteratorEmpty2() {
+        final List<Integer> actual = toStream(Iterators.<Integer>iterator(y -> y.yield()))
+                .toList();
+        assertArrayEquals(new Integer[0], actual.toArray());
+    }
+
+    @Test
     public void testIteratorSimple() {
         final List<Integer> actual = toStream(Iterators.<Integer>iterator(y -> {
             y.yield(1);
             y.yield(2);
             y.yield(3);
+            y.yield(4, 5, 6);
+            y.yield(7);
         }))
                 .toList();
-        assertArrayEquals(new Integer[] { 1, 2, 3}, actual.toArray());
+        assertArrayEquals(new Integer[] { 1, 2, 3, 4, 5, 6, 7}, actual.toArray());
     }
 
     @Test
