@@ -65,8 +65,11 @@ public final class ContinuationInvoker {
             // first invocation of the next() function. Let's create the virtual thread factory.
             // the factory is very special: it runs the continuations directly instead of submitting them into a runner.
             final Executor synchronousExecutor = command -> {
-                continuationsInvoked.incrementAndGet();
-                command.run();
+                try {
+                    command.run();
+                } finally {
+                    continuationsInvoked.incrementAndGet();
+                }
             };
             final ThreadFactory virtualThreadFactory = LoomUtils.newVirtualBuilder(synchronousExecutor).factory();
             final Thread thread = virtualThreadFactory.newThread(() -> {
@@ -89,28 +92,31 @@ public final class ContinuationInvoker {
 
             return !isDone();
         } else {
-            // this deque is populated, which causes the next continuation to run immediately;
-            // the continuation suspends by cleaning
+            // This deque is populated only from this function, and then it's cleaned immediately.
+            // Therefore, it must be empty.
             assert continuationUnpark.isEmpty();
 
             final int invocationCount = continuationsInvoked.get();
-            // Similar trick as above: continuationUnpark.offer() unblocks this.suspend() which causes
-            // the virtual thread to mount and resume execution immediately. Since we're using
+            // Similar trick as above: continuationUnpark.offer() unblocks the runnable (which is now stuck in this.suspend()), which causes
+            // the virtual thread to immediately run next continuation on our executor. Since we're using
             // synchronousExecutor, the execution runs right away, blocking the call to offer().
             // The execution either terminates, or calls this.suspend(), which cleans up the queue.
             continuationUnpark.offer(new Object());
+            // the continuation finished its execution, either by terminating or by calling this.suspend().
 
-            if (isDone()) {
-                return false;
-            } else {
-                // The execution of this.runnable called this.suspend() which cleared up the queue. Therefore,
-                // the continuationUnpark queue must be empty. Check.
-                if (!continuationUnpark.isEmpty()) {
-                    throw new IllegalStateException("Runnable is only allowed to call this.suspend() but it blocked in another way");
-                }
-            }
+            // check that the trick above worked and the continuation finished executing.
             if (continuationsInvoked.get() != invocationCount + 1) {
                 throw new IllegalStateException("Expected to run the continuation in unpark() but nothing was done");
+            }
+
+            if (isDone()) {
+                // runnable terminated. There will be no more continuations => return false.
+                return false;
+            }
+            // The execution of this.runnable called this.suspend() which cleared up the queue. Therefore,
+            // the continuationUnpark queue must be empty. Check.
+            if (!continuationUnpark.isEmpty()) {
+                throw new IllegalStateException("Runnable is only allowed to call this.suspend() but it blocked in another way");
             }
             return true;
         }
