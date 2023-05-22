@@ -32,14 +32,14 @@ public final class ContinuationInvoker {
      * If true the {@link #runnable} has finished its execution and there will be no more
      * continuations to run.
      */
-    private final AtomicBoolean executionDone = new AtomicBoolean();
+    private boolean executionDone = false;
 
     private BlockingQueue<Object> continuationUnpark = null;
     /**
      * Used to assert that continuation.unpark() is invoked synchronously from Thread.start() and continuationUnpark.take(),
      * otherwise this class won't work properly.
      */
-    private final AtomicInteger continuationsInvoked = new AtomicInteger();
+    private int continuationsInvoked = 0;
 
     /**
      * Creates an invoker which runs given block as a series of continuations. Doesn't call the block
@@ -51,7 +51,7 @@ public final class ContinuationInvoker {
     }
 
     public boolean isDone() {
-        return executionDone.get();
+        return executionDone;
     }
 
     /**
@@ -71,7 +71,7 @@ public final class ContinuationInvoker {
                 try {
                     command.run();
                 } finally {
-                    continuationsInvoked.incrementAndGet();
+                    continuationsInvoked++;
                 }
             };
             final ThreadFactory virtualThreadFactory = LoomUtils.newVirtualBuilder(synchronousExecutor).factory();
@@ -79,7 +79,7 @@ public final class ContinuationInvoker {
                 try {
                     runnable.run();
                 } finally {
-                    executionDone.set(true);
+                    executionDone = true;
                 }
             });
             continuationUnpark = new LinkedBlockingQueue<>(1);
@@ -89,7 +89,7 @@ public final class ContinuationInvoker {
             // to block until this continuation finishes or suspends via this.suspend().
             thread.start();
             // done: first continuation finished its execution. Assert on that.
-            if (continuationsInvoked.get() != 1) {
+            if (continuationsInvoked != 1) {
                 throw new IllegalStateException("Expected to run the continuation in VirtualThread.start() but nothing was done");
             }
 
@@ -99,7 +99,7 @@ public final class ContinuationInvoker {
             // Therefore, it must be empty.
             assert continuationUnpark.isEmpty();
 
-            final int invocationCount = continuationsInvoked.get();
+            final int invocationCount = continuationsInvoked;
             // Similar trick as above: continuationUnpark.offer() unblocks the runnable (which is now stuck in this.suspend()), which causes
             // the virtual thread to immediately run next continuation on our executor. Since we're using
             // synchronousExecutor, the execution runs right away, blocking the call to offer().
@@ -108,7 +108,7 @@ public final class ContinuationInvoker {
             // the continuation finished its execution, either by terminating or by calling this.suspend().
 
             // check that the trick above worked and the continuation finished executing.
-            if (continuationsInvoked.get() != invocationCount + 1) {
+            if (continuationsInvoked != invocationCount + 1) {
                 throw new IllegalStateException("Expected to run the continuation in unpark() but nothing was done");
             }
 
