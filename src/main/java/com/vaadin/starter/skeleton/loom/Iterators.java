@@ -80,6 +80,24 @@ public final class Iterators  {
         }
     }
 
+    /**
+     * Allows you to build the iterator contents by calling {@link Yielder#yield(Object)}:
+     * <pre>
+     * val iterator = Iterators.iterator(y -> {
+     *     yield(1);
+     *     yield(2);
+     *     yield(3);
+     * });
+     * </pre>
+     * The call to yield() suspends the generator until the item is consumed by a call to {@link Iterator#next()}.
+     * The iterator starts lazy, upon call to {@link Iterator#hasNext()} or {@link Iterator#next()}.
+     * <p></p>
+     * The generator may never terminate, thus producing infinite sequence of items. See {@link #fibonacci()}
+     * for an example.
+     * @param generator calls {@link Yielder#yield(Object)} to pass generated values to whoever called {@link Iterator#next()}.
+     * @return the iterator
+     * @param <E> the item type
+     */
     @NotNull
     public static <E> Iterator<E> iterator(@NotNull Consumer<Yielder<E>> generator) {
         final Yielder<E> yielder = new Yielder<>();
