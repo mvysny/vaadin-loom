@@ -5,6 +5,8 @@ import org.jetbrains.annotations.NotNull;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 public final class Iterators  {
     /**
@@ -81,5 +83,10 @@ public final class Iterators  {
             }
         };
         return generate(itemSupplier);
+    }
+
+    @NotNull
+    public static <E> Stream<E> toStream(@NotNull Iterator<E> iterator) {
+        return StreamSupport.stream(Spliterators.spliteratorUnknownSize(iterator, 0), false);
     }
 }
