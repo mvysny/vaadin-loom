@@ -104,7 +104,7 @@ public final class ContinuationInvoker {
             // the virtual thread to immediately run next continuation on our executor. Since we're using
             // synchronousExecutor, the execution runs right away, blocking the call to offer().
             // The execution either terminates, or calls this.suspend(), which cleans up the queue.
-            continuationUnpark.offer(new Object());
+            continuationUnpark.offer(""); // the type of the item doesn't really matter.
             // the continuation finished its execution, either by terminating or by calling this.suspend().
 
             // check that the trick above worked and the continuation finished executing.
