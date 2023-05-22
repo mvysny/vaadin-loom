@@ -14,7 +14,10 @@ import java.util.concurrent.atomic.AtomicInteger;
  * <ul>
  *     <li>You call {@link #next()}</li>
  *     <li>The {@link #runnable} is run from {@link #next()} until it terminates or until it suspends via a call to {@link #suspend()}</li>
- *     <li>When any of the above happens, {@link #next()} ends</li>
+ *     <li>When any of the above happens, {@link #next()} returns</li>
+ *     <li>You call {@link #next()} again</li>
+ *     <li>The {@link #runnable} wakes up from {@link #suspend()} and continues to run until it terminates or suspends again</li>
+ *     <li>Rinse and repeat</li>
  * </ul>
  * NOT THREAD SAFE.
  */
