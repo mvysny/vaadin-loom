@@ -47,3 +47,27 @@ of continuations, each continuation running a piece of code until it blocks. Con
 We'll run Continuation `Runnables` via `UI.access()`.
 
 I repeat. This is obviously bloody dark magic.
+
+# Generators
+
+As it turns out, it's possible to also implement a so-called generator using this technique.
+See the `Iterators.fibonacci()` for more details:
+
+```java
+public final class Iterators {
+    public static Iterator<Integer> fibonacci() {
+        return iterator(y -> {
+            int t1 = 0;
+            int t2 = 1;
+            while (true) {
+                y.yield(t1);
+                final int sum = t1 + t2;
+                t1 = t2;
+                t2 = sum;
+            }
+        });
+    }
+}
+```
+
+Please read [Java Generators](https://mvysny.github.io/java-generators/) on how this works.
