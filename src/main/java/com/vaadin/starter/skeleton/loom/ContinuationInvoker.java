@@ -32,14 +32,14 @@ public final class ContinuationInvoker {
      * If true the {@link #runnable} has finished its execution and there will be no more
      * continuations to run.
      */
-    private boolean executionDone = false;
+    private volatile boolean executionDone = false;
 
     private BlockingQueue<Object> continuationUnpark = null;
     /**
      * Used to assert that continuation.unpark() is invoked synchronously from Thread.start() and continuationUnpark.take(),
      * otherwise this class won't work properly.
      */
-    private int continuationsInvoked = 0;
+    private volatile int continuationsInvoked = 0;
 
     /**
      * Creates an invoker which runs given block as a series of continuations. Doesn't call the block
@@ -99,19 +99,24 @@ public final class ContinuationInvoker {
             // Therefore, it must be empty.
             assert continuationUnpark.isEmpty();
 
+            // The runnable is at the moment stuck in this.suspend(), waiting for the queue to become non-empty.
+            // The virtual thread running the runnable is unmounted and laying dormant.
+
             final int invocationCount = continuationsInvoked;
-            // Similar trick as above: continuationUnpark.offer() unblocks the runnable (which is now stuck in this.suspend()), which causes
-            // the virtual thread to immediately run next continuation on our executor. Since we're using
+            // Similar trick as above: continuationUnpark.offer() unblocks the runnable which is stuck in this.suspend().
+            // That causes the virtual thread to immediately run next continuation on our executor. Since we're using
             // synchronousExecutor, the execution runs right away, blocking the call to offer().
             // The execution either terminates, or calls this.suspend(), which cleans up the queue.
             continuationUnpark.offer(""); // the type of the item doesn't really matter.
             // the continuation finished its execution, either by terminating or by calling this.suspend().
 
             // check that the trick above worked and the continuation finished executing.
+            // To avoid the compiler optimizing this to false, let's mark continuationsInvoked volatile.
             if (continuationsInvoked != invocationCount + 1) {
                 throw new IllegalStateException("Expected to run the continuation in unpark() but nothing was done");
             }
 
+            // To avoid the compiler optimizing this to false, executionDone must be volatile.
             if (isDone()) {
                 // runnable terminated. There will be no more continuations => return false.
                 return false;
@@ -130,14 +135,28 @@ public final class ContinuationInvoker {
      */
     public void suspend() {
         if (!Thread.currentThread().isVirtual()) {
+            // this.runnable runs in a virtual thread. If the current thread isn't virtual, it's most definitely not called from this.runnable.
             throw new IllegalStateException("Can only be called from this.runnable");
         }
         if (continuationUnpark == null) {
+            // next() hasn't been called, therefore this.runnable isn't running and therefore can't be the
+            // one calling this function.
+            throw new IllegalStateException("Can only be called from this.runnable");
+        }
+        if (!continuationUnpark.isEmpty()) {
+            // The execution flow is as follows:
+            // 1. this.runnable is stuck in this.suspend(), which means that the queue is empty.
+            // 2. next() gets called which offers an item to the queue.
+            // 3. continuationUnpark.take() consumes the item (making the queue empty) and
+            //    unblocks the runnable which executes synchronously until it calls suspend() again.
+            // 4. YOU ARE HERE: suspend() gets called. The queue must be empty.
             throw new IllegalStateException("Can only be called from this.runnable");
         }
         try {
-            // If the continuationUnpark is empty, this blocks. That will park the virtual thread,
-            // which will
+            // Since the queue is empty, this call blocks. That will park the virtual thread,
+            // which will cause the current continuation to stop executing. Remember that the
+            // this.next() function is blocked and busy running the continuation; therefore this call
+            // unblocks the this.next() function.
             continuationUnpark.take();
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
