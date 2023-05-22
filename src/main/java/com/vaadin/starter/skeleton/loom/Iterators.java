@@ -103,4 +103,22 @@ public final class Iterators  {
     public static <E> Stream<E> toStream(@NotNull Iterator<E> iterator) {
         return StreamSupport.stream(Spliterators.spliteratorUnknownSize(iterator, 0), false);
     }
+
+    /**
+     * An endless iterator of Fibonacci numbers. Demoes the generating {@link #iterator(Consumer)}.
+     * @return the iterator
+     */
+    @NotNull
+    public static Iterator<Integer> fibonacci() {
+        return iterator(y -> {
+            int t1 = 0;
+            int t2 = 1;
+            while (true) {
+                y.yield(t1);
+                final int sum = t1 + t2;
+                t1 = t2;
+                t2 = sum;
+            }
+        });
+    }
 }

@@ -26,4 +26,30 @@ public class IteratorsTest {
                 .toList();
         assertArrayEquals(new Integer[0], actual.toArray());
     }
+
+    @Test
+    public void testIteratorEmpty() {
+        final List<Integer> actual = toStream(Iterators.<Integer>iterator(y -> {}))
+                .toList();
+        assertArrayEquals(new Integer[0], actual.toArray());
+    }
+
+    @Test
+    public void testIteratorSimple() {
+        final List<Integer> actual = toStream(Iterators.<Integer>iterator(y -> {
+            y.yield(1);
+            y.yield(2);
+            y.yield(3);
+        }))
+                .toList();
+        assertArrayEquals(new Integer[] { 1, 2, 3}, actual.toArray());
+    }
+
+    @Test
+    public void testIteratorFibonacci() {
+        final List<Integer> actual = toStream(fibonacci())
+                .limit(10)
+                .toList();
+        assertArrayEquals(new Integer[] { 0, 1, 1, 2, 3, 5, 8, 13, 21, 34 }, actual.toArray());
+    }
 }
