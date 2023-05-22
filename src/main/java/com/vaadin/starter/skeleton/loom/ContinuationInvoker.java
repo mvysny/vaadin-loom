@@ -104,9 +104,11 @@ public final class ContinuationInvoker {
 
             final int invocationCount = continuationsInvoked;
             // Similar trick as above: continuationUnpark.offer() unblocks the runnable which is stuck in this.suspend().
-            // That causes the virtual thread to immediately run next continuation on our executor. Since we're using
-            // synchronousExecutor, the execution runs right away, blocking the call to offer().
-            // The execution either terminates, or calls this.suspend(), which cleans up the queue.
+            // The virtual thread submits another continuation to the executor. Since we're using
+            // synchronousExecutor, the execution runs right away.
+            // The this.runnable consumes the item offered to the queue (since it was stuck in BlockingQueue.take()), making the queue empty.
+            // The this.runnable execution continues until it either terminates, or calls this.suspend(), which blocks again on a now-empty queue.
+            // Only then the call to offer() ends.
             continuationUnpark.offer(""); // the type of the item doesn't really matter.
             // the continuation finished its execution, either by terminating or by calling this.suspend().
 
