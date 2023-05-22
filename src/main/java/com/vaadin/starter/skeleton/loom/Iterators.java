@@ -1,6 +1,7 @@
 package com.vaadin.starter.skeleton.loom;
 
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 import java.util.function.Consumer;
@@ -58,29 +59,42 @@ public final class Iterators  {
         };
     }
 
+    /**
+     * Generator calls {@link #yield(Object)} on this object when it has generated an item.
+     * @param <E> the type of the items produced.
+     */
     public static final class Yielder<E> {
         private ContinuationInvoker continuationInvoker = null;
+        /**
+         * This will temporarily hold the item passed to {@link #yield(Object)}.
+         */
         private final Deque<E> availableItems = new LinkedList<>();
 
-        public void yield(@NotNull E item) {
+        /**
+         * Generate an item. The item is immediately returned via {@link Iterator#next()}.
+         * @param item the item to return, may be null.
+         */
+        public void yield(@Nullable E item) {
             availableItems.add(item);
             continuationInvoker.suspend();
         }
     }
 
     @NotNull
-    public static <E> Iterator<E> iterator(@NotNull Consumer<Yielder<E>> block) {
+    public static <E> Iterator<E> iterator(@NotNull Consumer<Yielder<E>> generator) {
         final Yielder<E> yielder = new Yielder<>();
-        final ContinuationInvoker continuationInvoker = new ContinuationInvoker(() -> block.accept(yielder));
+        final ContinuationInvoker continuationInvoker = new ContinuationInvoker(() -> generator.accept(yielder));
         yielder.continuationInvoker = continuationInvoker;
-        final Supplier<E> itemSupplier = new Supplier<E>() {
-            @Override
-            public E get() {
-                if (!continuationInvoker.next()) {
-                    return null;
-                }
-                return yielder.availableItems.remove();
+        final Supplier<E> itemSupplier = () -> {
+            // run the next continuation. The continuation stops when called yield(),
+            // therefore Yielder.availableItems will have at most 1 item.
+            final boolean hasMoreContinuations = continuationInvoker.next();
+            if (!hasMoreContinuations) {
+                // the generator finished and there won't be more items. Terminate the iteration.
+                return null;
             }
+            // The continuation stopped by called yield(), therefore we have an item.
+            return yielder.availableItems.remove();
         };
         return generate(itemSupplier);
     }

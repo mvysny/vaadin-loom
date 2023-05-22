@@ -19,4 +19,11 @@ public class IteratorsTest {
                 .toList();
         assertArrayEquals(expected.toArray(), actual.toArray());
     }
+
+    @Test
+    public void testIteratorsGenerateEmpty() {
+        final List<Integer> actual = toStream(Iterators.<Integer>generate(() -> null))
+                .toList();
+        assertArrayEquals(new Integer[0], actual.toArray());
+    }
 }
