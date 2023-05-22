@@ -26,7 +26,9 @@ public class LoomUtils {
     public static Thread.Builder.OfVirtual newVirtualBuilder(@NotNull Executor executor) {
         Objects.requireNonNull(executor);
 
-        // construct a specialized virtual thread builder which runs continuations on uiExecutor
+        // Construct a specialized virtual thread builder which runs continuations on given executor.
+        // We need to use reflection since the API is not public:
+        // https://bugs.java.com/bugdatabase/view_bug?bug_id=JDK-8308541
         try {
             final Class<?> vtbclass = Class.forName("java.lang.ThreadBuilders$VirtualThreadBuilder");
             final Constructor<?> c = vtbclass.getDeclaredConstructor(Executor.class);
