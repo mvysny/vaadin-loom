@@ -124,8 +124,10 @@ public final class Iterators  {
         yielder.continuationInvoker = continuationInvoker;
         final Supplier<E> itemSupplier = () -> {
             if (!yielder.availableItems.isEmpty()) {
+                // multiple items have been yielded previously. Return them one-by-one.
                 return yielder.availableItems.remove();
             }
+
             // run the next continuation. The continuation stops when called yield(),
             // therefore Yielder.availableItems will have at most 1 item.
             final boolean hasMoreContinuations = continuationInvoker.next();
