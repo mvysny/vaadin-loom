@@ -8,6 +8,7 @@ import com.vaadin.flow.component.confirmdialog.ConfirmDialog;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.Route;
+import com.vaadin.starter.skeleton.loom.VaadinSuspendingExecutor;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.concurrent.CompletableFuture;

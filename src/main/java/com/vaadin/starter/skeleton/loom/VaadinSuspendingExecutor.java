@@ -1,4 +1,4 @@
-package com.vaadin.starter.skeleton;
+package com.vaadin.starter.skeleton.loom;
 
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.server.Command;

@@ -1,4 +1,4 @@
-package com.vaadin.starter.skeleton;
+package com.vaadin.starter.skeleton.loom;
 
 import org.jetbrains.annotations.NotNull;
 
