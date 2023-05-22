@@ -2,6 +2,7 @@ package com.vaadin.starter.skeleton.loom;
 
 import org.jetbrains.annotations.NotNull;
 
+import java.util.Objects;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Executor;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -47,7 +48,7 @@ public final class ContinuationInvoker {
      * @param runnable the runnable. Not run right away - first continuation is only run when {@link #next()} is called.
      */
     public ContinuationInvoker(@NotNull Runnable runnable) {
-        this.runnable = runnable;
+        this.runnable = Objects.requireNonNull(runnable);
     }
 
     public boolean isDone() {
@@ -130,6 +131,9 @@ public final class ContinuationInvoker {
      */
     public void suspend() {
         if (!Thread.currentThread().isVirtual()) {
+            throw new IllegalStateException("Can only be called from this.runnable");
+        }
+        if (continuationUnpark == null) {
             throw new IllegalStateException("Can only be called from this.runnable");
         }
         try {
