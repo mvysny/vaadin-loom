@@ -45,8 +45,18 @@ public final class SuspendingExecutor implements AutoCloseable {
         virtualThreadExecutor.submit(runnable);
     }
 
+    /**
+     * Closes the executor immediately. Any suspended virtual threads are killed immediately, then garbage-collected eventually.
+     */
     @Override
-    public void close() throws Exception {
-        virtualThreadExecutor.close();
+    public void close() {
+        // can not use close() or shutdown()/awaitTermination() since the function would block until the virtual threads actually end.
+        // But they may be suspended, waiting for the user to click "Yes" on a blocking dialog which could take a long time.
+//        virtualThreadExecutor.close();
+        virtualThreadExecutor.shutdownNow();
+        // don't call this: it will block until all ongoing virtual threads actually finish, which they may never do.
+        // Throwing away the executor instance should also garbage-collect all submitted tasks, since the executor doesn't
+        // have any ongoing threads that would keep the reference to the tasks.
+//        virtualThreadExecutor.awaitTermination(1, TimeUnit.DAYS);
     }
 }

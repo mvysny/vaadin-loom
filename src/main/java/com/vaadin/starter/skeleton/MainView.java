@@ -28,11 +28,7 @@ public class MainView extends VerticalLayout {
 
     @Override
     protected void onDetach(@NotNull DetachEvent detachEvent) {
-        try {
-            executor.close();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        executor.close();
         executor = null;
         super.onDetach(detachEvent);
     }
@@ -40,7 +36,11 @@ public class MainView extends VerticalLayout {
     public MainView() {
         add(new Button("Blocking dialog", e -> executor.run(() -> {
             if (confirmDialog("Are you sure?")) {
-                Notification.show("Yes you're sure");
+                if (confirmDialog("Are you really sure?")) {
+                    Notification.show("Yes you're sure");
+                } else {
+                    Notification.show("Yes but no");
+                }
             } else {
                 Notification.show("Nope, not sure");
             }

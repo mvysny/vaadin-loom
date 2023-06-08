@@ -60,8 +60,11 @@ public final class VaadinSuspendingExecutor implements AutoCloseable {
         });
     }
 
+    /**
+     * Closes the executor immediately. Any suspended virtual threads are killed immediately, then garbage-collected eventually.
+     */
     @Override
-    public void close() throws Exception {
+    public void close() {
         suspendingExecutor.close();
     }
 
