@@ -70,14 +70,31 @@ public class MainViewTest {
     }
 
     @Test
-    public void testBlockingDialog() {
+    public void testBlockingDialogYes() {
         // simulate a button click as if clicked by the user
         _click(_get(Button.class, spec -> spec.withText("Blocking dialog")));
 
+        // First confirm dialog
+        _assertOne(ConfirmDialog.class);
+        ConfirmDialogKt._fireConfirm(_get(ConfirmDialog.class));
+        // Second confirm dialog
         _assertOne(ConfirmDialog.class);
         ConfirmDialogKt._fireConfirm(_get(ConfirmDialog.class));
 
         // check that the notification has been shown
         expectNotifications("Yes you're sure");
+    }
+
+    @Test
+    public void testBlockingDialogNo() {
+        // simulate a button click as if clicked by the user
+        _click(_get(Button.class, spec -> spec.withText("Blocking dialog")));
+
+        // First confirm dialog
+        _assertOne(ConfirmDialog.class);
+        ConfirmDialogKt._fireCancel(_get(ConfirmDialog.class));
+
+        // check that the notification has been shown
+        expectNotifications("Nope, not sure");
     }
 }
