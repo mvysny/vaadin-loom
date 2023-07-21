@@ -1,7 +1,9 @@
+import org.gradle.api.tasks.testing.logging.TestExceptionFormat
+
 plugins {
-    id 'java'
-    id 'application'
-    id 'com.vaadin' version '24.1.0'
+    `java`
+    `application`
+    id("com.vaadin") version "24.1.0"
 }
 
 defaultTasks("clean", "build")
@@ -15,7 +17,7 @@ dependencies {
     implementation("com.vaadin:vaadin-core:24.1.0") {
         afterEvaluate {
             if (vaadin.productionMode) {
-                exclude(module: "vaadin-dev")
+                exclude(module = "vaadin-dev")
             }
         }
     }
@@ -23,7 +25,7 @@ dependencies {
     // Vaadin-Boot
     implementation("com.github.mvysny.vaadin-boot:vaadin-boot:11.3")
 
-    implementation('org.jetbrains:annotations:23.1.0')
+    implementation("org.jetbrains:annotations:23.1.0")
 
     // logging
     // currently we are logging through the SLF4J API to SLF4J-Simple. See src/main/resources/simplelogger.properties file for the logger configuration
@@ -39,27 +41,27 @@ java {
     targetCompatibility = JavaVersion.VERSION_20
 }
 
-test {
+tasks.withType<Test> {
     useJUnitPlatform()
     testLogging {
-        exceptionFormat = "FULL"
+        exceptionFormat = TestExceptionFormat.FULL
     }
 }
 
 application {
-    mainClassName = "com.vaadin.starter.skeleton.Main"
+    mainClass.set("com.vaadin.starter.skeleton.Main")
     // we are going really low-level here.
-    applicationDefaultJvmArgs = ["--enable-preview", '--add-opens', 'java.base/java.lang=ALL-UNNAMED']
+    applicationDefaultJvmArgs = listOf("--enable-preview", "--add-opens", "java.base/java.lang=ALL-UNNAMED")
 }
 
-tasks.withType(JavaCompile) {
-    options.compilerArgs += "--enable-preview"
+tasks.withType<JavaCompile> {
+    options.compilerArgs = options.compilerArgs!! + "--enable-preview"
 }
 
-tasks.withType(Test) {
-    jvmArgs += ["--enable-preview", '--add-opens', 'java.base/java.lang=ALL-UNNAMED']
+tasks.withType<Test> {
+    jvmArgs(listOf("--enable-preview", "--add-opens", "java.base/java.lang=ALL-UNNAMED"))
 }
 
-tasks.withType(JavaExec) {
-    jvmArgs += ["--enable-preview", '--add-opens', 'java.base/java.lang=ALL-UNNAMED']
+tasks.withType<JavaExec> {
+    jvmArgs(listOf("--enable-preview", "--add-opens", "java.base/java.lang=ALL-UNNAMED"))
 }
