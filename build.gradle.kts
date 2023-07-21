@@ -1,9 +1,9 @@
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 
 plugins {
-    `java`
-    `application`
-    id("com.vaadin") version "24.1.0"
+    java
+    application
+    id("com.vaadin") version "24.1.3"
 }
 
 defaultTasks("clean", "build")
@@ -14,7 +14,7 @@ repositories {
 
 dependencies {
     // Vaadin
-    implementation("com.vaadin:vaadin-core:24.1.0") {
+    implementation("com.vaadin:vaadin-core:24.1.3") {
         afterEvaluate {
             if (vaadin.productionMode) {
                 exclude(module = "vaadin-dev")
@@ -29,11 +29,11 @@ dependencies {
 
     // logging
     // currently we are logging through the SLF4J API to SLF4J-Simple. See src/main/resources/simplelogger.properties file for the logger configuration
-    implementation("org.slf4j:slf4j-simple:2.0.6")
+    implementation("org.slf4j:slf4j-simple:2.0.7")
 
     // Fast Vaadin unit-testing with Karibu-Testing: https://github.com/mvysny/karibu-testing
     testImplementation("com.github.mvysny.kaributesting:karibu-testing-v24:2.1.0")
-    testImplementation("org.junit.jupiter:junit-jupiter-engine:5.9.2")
+    testImplementation("org.junit.jupiter:junit-jupiter-engine:5.9.3")
 }
 
 java {
