@@ -7,20 +7,19 @@
 # Uses Docker Multi-stage builds: https://docs.docker.com/build/building/multi-stage/
 
 # The "Build" stage. Copies the entire project into the container, into the /app/ folder, and builds it.
-FROM eclipse-temurin:20 AS BUILD
-RUN apt update && apt install unzip -y
+FROM amazoncorretto:21 AS BUILD
 COPY . /app/
 WORKDIR /app/
 RUN ./gradlew clean test --no-daemon --info --stacktrace
 RUN ./gradlew clean build -Pvaadin.productionMode --no-daemon --info --stacktrace
 WORKDIR /app/build/distributions/
 RUN ls -la
-RUN unzip app.zip
+RUN tar xvf app.tar
 # At this point, we have the app (executable bash scrip plus a bunch of jars) in the
 # /app/build/distributions/app/ folder.
 
 # The "Run" stage. Start with a clean image, and copy over just the app itself, omitting gradle, npm and any intermediate build files.
-FROM eclipse-temurin:20
+FROM amazoncorretto:21
 COPY --from=BUILD /app/build/distributions/app /app/
 WORKDIR /app/bin
 EXPOSE 8080
