@@ -44,8 +44,8 @@ dependencies {
 }
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_20
-    targetCompatibility = JavaVersion.VERSION_20
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
 }
 
 tasks.withType<Test> {
@@ -58,15 +58,11 @@ tasks.withType<Test> {
 application {
     mainClass.set("com.vaadin.starter.skeleton.Main")
     // we are going really low-level here.
-    applicationDefaultJvmArgs = listOf("--enable-preview", "--add-opens", "java.base/java.lang=ALL-UNNAMED")
-}
-
-tasks.withType<JavaCompile> {
-    options.compilerArgs = options.compilerArgs!! + "--enable-preview"
+    applicationDefaultJvmArgs = listOf("--add-opens", "java.base/java.lang=ALL-UNNAMED")
 }
 
 tasks.withType<Test> {
-    jvmArgs(listOf("--enable-preview", "--add-opens", "java.base/java.lang=ALL-UNNAMED"))
+    jvmArgs(listOf("--add-opens", "java.base/java.lang=ALL-UNNAMED"))
 }
 
 tasks.withType<JavaExec> {
