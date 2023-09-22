@@ -7,10 +7,9 @@
 # Uses Docker Multi-stage builds: https://docs.docker.com/build/building/multi-stage/
 
 # The "Build" stage. Copies the entire project into the container, into the /app/ folder, and builds it.
-FROM amazoncorretto:21 AS BUILD
+FROM openjdk:21-jdk-bookworm AS BUILD
 COPY . /app/
 WORKDIR /app/
-RUN ./gradlew clean test --no-daemon --info --stacktrace
 RUN ./gradlew clean build -Pvaadin.productionMode --no-daemon --info --stacktrace
 WORKDIR /app/build/distributions/
 RUN ls -la
@@ -19,7 +18,7 @@ RUN tar xvf app.tar
 # /app/build/distributions/app/ folder.
 
 # The "Run" stage. Start with a clean image, and copy over just the app itself, omitting gradle, npm and any intermediate build files.
-FROM amazoncorretto:21
+FROM openjdk:21-bookworm
 COPY --from=BUILD /app/build/distributions/app /app/
 WORKDIR /app/bin
 EXPOSE 8080
