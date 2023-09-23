@@ -1,7 +1,7 @@
 # Vaadin Loom
 
 A prototype project which tries to implement Vaadin Blocking dialogs using the Java Project Loom.
-Uses [Vaadin Boot](https://github.com/mvysny/vaadin-boot). Requires Java 20+.
+Uses [Vaadin Boot](https://github.com/mvysny/vaadin-boot). Requires Java 21+.
 
 Read [Vaadin and Blocking Dialogs](https://mvysny.github.io/vaadin-blocking-dialogs/) on why this
 is such a hard thing to do.
@@ -10,22 +10,12 @@ Simply run `Main.java` `main()` method from your IDE. Make sure to have the foll
 arguments when launching `Main.java` (in Intellij: edit launch configuration, modify options, add VM options):
 
 ```
---enable-preview --add-opens java.base/java.lang=ALL-UNNAMED
+--add-opens java.base/java.lang=ALL-UNNAMED
 ```
 
-The reason is that we're hacking deep into virtual threads and we need access to JVM internal stuff.
+The reason is that we're hacking deep into virtual threads, and we need access to JVM internal stuff.
 
 See the [live demo running on v-herd](https://v-herd.eu/vaadin-loom/).
-
-# Warning
-
-This is not even alpha quality. If it works, it works just by a random coincidence. I'm just hacking
-deep into virtual threads, without really knowing what I'm really doing. Prototype quality.
-
-I don't even know whether this works on any other Java than the one I'm running ([Eclipse Temurin JDK 20](https://projects.eclipse.org/projects/adoptium.temurin)).
-The project may fail on other JVMs. Or maybe not :)
-
-This is obviously bloody dark magic.
 
 # Documentation
 
@@ -45,8 +35,6 @@ Project Loom allows us to run code in a virtual thread. Virtual thread runs the 
 of continuations, each continuation running a piece of code until it blocks. Continuation is ultimately a `Runnable`.
 
 We'll run Continuation `Runnables` via `UI.access()`.
-
-I repeat. This is obviously bloody dark magic.
 
 # Generators
 
@@ -71,3 +59,7 @@ public final class Iterators {
 ```
 
 Please read [Java Generators](https://mvysny.github.io/java-generators/) on how this works.
+
+Note: this makes a couple of assumptions on the implementation of the JVM virtual threads.
+This may break. I'm testing on Oracle OpenJDK and Amazon Corretto and it seems to work,
+but this might break on other JVMs.
