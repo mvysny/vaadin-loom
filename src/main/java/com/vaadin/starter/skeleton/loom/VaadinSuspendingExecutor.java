@@ -39,7 +39,9 @@ public final class VaadinSuspendingExecutor implements AutoCloseable {
     public void run(@NotNull Runnable runnable) {
         Objects.requireNonNull(runnable);
         suspendingExecutor.run(() -> {
-            // now we're running in the virtual thread.
+            // now we're running in the virtual thread; the virtual thread is mounted to a Vaadin UI thread.
+            //
+            // There's a slight problem though:
             // The UI.current is null for the virtual thread since the virtual thread doesn't inherit UI.current
             // from its carrier thread. Fix that.
             try {
@@ -94,7 +96,22 @@ public final class VaadinSuspendingExecutor implements AutoCloseable {
 
         @Override
         public void execute(@NotNull Runnable command) {
-            ui.access((Command) command::run);
+            ui.access(() -> {
+                // "command" is a Continuation which runs a piece of code.
+                // Continuations require native OS threads to run - they can not be run on a virtual thread.
+                if (Thread.currentThread().isVirtual()) {
+                    // Looks like Jetty uses virtual threads to serve http requests. There's a bit of a problem with that.
+                    //
+                    // We are chopping the execution into continuations, then running those continuations in Vaadin UI thread via ui.access().
+                    // The problem is that if the UI thread itself is virtual, it can not serve as a carrier thread for the continuation,
+                    // and the whole thing blows up with the "java.lang.WrongThreadException"
+                    //    at java.base/java.lang.VirtualThread.runContinuation(VirtualThread.java:204)
+                    //
+                    // Currently there's no solution for that, so fail fast and clean
+                    throw new IllegalStateException("http requests seems to be running in virtual threads. This is currently unsupported.");
+                }
+                command.run();
+            });
         }
     }
 }

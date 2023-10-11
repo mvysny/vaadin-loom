@@ -28,8 +28,10 @@ public class MainView extends VerticalLayout {
 
     @Override
     protected void onDetach(@NotNull DetachEvent detachEvent) {
-        executor.close();
-        executor = null;
+        if (executor != null) {
+            executor.close();
+            executor = null;
+        }
         super.onDetach(detachEvent);
     }
 

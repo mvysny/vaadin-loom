@@ -27,7 +27,7 @@ public final class SuspendingExecutor implements AutoCloseable {
 
     /**
      * Creates the suspending executor.
-     * @param executor The carrier thread executor - executes given Runnables (Continuations) on an actual OS thread
+     * @param executor Executes given Runnables (Continuations) on an actual OS thread
      *                 (called a carrier thread). No magic happens in this executor - the
      *                 runnables are run until they're terminated.
      */
