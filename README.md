@@ -34,7 +34,17 @@ To run a `Runnable` in Vaadin UI 'thread' you call `UI.access()`.
 Project Loom allows us to run code in a virtual thread. Virtual thread runs the code as a series
 of continuations, each continuation running a piece of code until it blocks. Continuation is ultimately a `Runnable`.
 
-We'll run Continuation `Runnables` via `UI.access()`.
+We'll run Continuation `Runnables` via `UI.access()`. That's the whole idea of how this thing works.
+
+## Serving http requests in virtual threads
+
+In `Main.java`, Vaadin Boot is configured to force Jetty to always use native threads to serve http requests.
+The problem is that the Continations require native threads to run on, they can not run on virtual threads.
+
+However, the main idea of virtual threads is to avoid having platform-native threads blocked by e.g. a database access.
+And if we run all Vaadin code from `VaadinSuspendingExecutor` then the native http-request-serving threads will never block
+since all they'll do is that they'll run Continuations which do not block by definition, since
+Continuation execution ends when the virtual thread blocks.
 
 # Generators
 
