@@ -9,7 +9,7 @@ jobs:
       matrix:
         os: [ubuntu-latest]
         java: [21]
-        distribution: [oracle, corretto]
+        distribution: [oracle, corretto, temurin]
 
     runs-on: ${{ matrix.os }}
 
