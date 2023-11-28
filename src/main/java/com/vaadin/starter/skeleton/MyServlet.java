@@ -4,14 +4,14 @@ import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.function.DeploymentConfiguration;
 import com.vaadin.flow.server.*;
+import jakarta.servlet.annotation.WebServlet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * We need to hack VaadinSession.hasLock() to work with virtual threads.
  */
+@WebServlet(name = "myservlet", urlPatterns = { "/*" })
 public class MyServlet extends VaadinServlet {
     @Override
     protected VaadinServletService createServletService(DeploymentConfiguration deploymentConfiguration) throws ServiceException {

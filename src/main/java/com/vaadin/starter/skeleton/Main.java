@@ -11,7 +11,6 @@ public final class Main {
     public static void main(@NotNull String[] args) throws Exception {
         new VaadinBoot()
                 .useVirtualThreadsIfAvailable(false)  // see VaadinSuspendingExecutor for the reason
-                .withServlet(MyServlet.class)
                 .run();
     }
 }
