@@ -64,5 +64,5 @@ tasks.withType<Test> {
 }
 
 tasks.withType<JavaExec> {
-    jvmArgs(listOf("--enable-preview", "--add-opens", "java.base/java.lang=ALL-UNNAMED"))
+    jvmArgs(listOf("--add-opens", "java.base/java.lang=ALL-UNNAMED"))
 }
