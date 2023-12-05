@@ -64,6 +64,8 @@ public final class Iterators  {
      * @param <E> the type of the items produced.
      */
     public static final class Yielder<E> {
+        private Yielder() {}
+
         private ContinuationInvoker continuationInvoker = null;
         /**
          * This will temporarily hold the item passed to {@link #yield(Object)}.
