@@ -46,13 +46,32 @@ public class MyServlet extends VaadinServlet {
         @Override
         public boolean hasLock() {
             if (Thread.currentThread().isVirtual()) {
-                // not possible
+                // A virtual thread. We can retrieve the lock instance by calling
+                // `(ReentrantLock) getLockInstance()`, but isHeldByCurrentThread()
+                // will return false (since the lock is held by the *carrier* thread, and not this virtual thread).
+                //
+                // We could figure out our carrier thread, but there's no way for ReentrantLock
+                // to check whether it's being held by a particular thread - ReentrantLock
+                // does not offer that kind of functionality.
+                //
+                // In other words, the following is not possible to do:
                 // ((ReentrantLock) getLockInstance()).isHeldByThread(UIExecutor.currentCarrierThread());
+                //
+                // Let's implement a weaker check. First let's check whether there is
+                // a current session - if not, then we're definitely not running in an UI thread
+                // and we can't have the lock.
+                final VaadinSession current = VaadinSession.getCurrent();
+                if (current == null) {
+                    return false;
+                }
 
-                // if the current session is this one, it has been set in VaadinSuspendingExecutor, which means
+                // There is a current session, but is it ours? If it isn't then this thread
+                // is locked in another session. Return false.
+                // On the other hand, if the current session is this one, it has been set in VaadinSuspendingExecutor, which means
                 // that we have the session lock.
-                return VaadinSession.getCurrent() == this;
+                return current == this;
             }
+            // a regular thread. Nothing special going on - fall back to traditional lock checking.
             return super.hasLock();
         }
     }

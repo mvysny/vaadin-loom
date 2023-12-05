@@ -12,7 +12,7 @@ public class LoomUtils {
      */
     public static void assertVirtualThread() {
         if (!Thread.currentThread().isVirtual()) {
-            throw new IllegalStateException("This can only be called from closures run via loom()");
+            throw new IllegalStateException("This can only be called from a virtual thread");
         }
     }
 

@@ -69,9 +69,9 @@ public class MainView extends VerticalLayout {
             // Await until the user clicks a button, which adds a value to the responseFuture.
             // This only works with virtual threads.
             //
-            // Since this is virtual thread, take() unmounts instead of blocking the current thread.
+            // Since this is virtual thread, CompletableFuture.get() unmounts instead of blocking the current thread.
             // See https://blogs.oracle.com/javamagazine/post/java-loom-virtual-threads-platform-threads for more details on the virtual thread basics.
-            // That means that while we're 'blocked' in take(), Vaadin UI thread is allowed to finish and render the dialog.
+            // That means that while we're 'blocked' in get(), Vaadin UI thread is allowed to finish and render the dialog.
             // On button click, value is added to the responseFuture which wakes up this virtual thread.
             // This virtual thread mounts to a Vaadin UI thread and continues execution.
             //
