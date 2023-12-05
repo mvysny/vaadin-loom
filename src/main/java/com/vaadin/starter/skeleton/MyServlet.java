@@ -58,7 +58,7 @@ public class MyServlet extends VaadinServlet {
                 // ((ReentrantLock) getLockInstance()).isHeldByThread(UIExecutor.currentCarrierThread());
                 //
                 // Let's implement a weaker check. First let's check whether there is
-                // a current session - if not, then we're definitely not running in an UI thread
+                // a current session - if not, then we're definitely not running in a UI thread,
                 // and we can't have the lock.
                 final VaadinSession current = VaadinSession.getCurrent();
                 if (current == null) {
@@ -67,9 +67,16 @@ public class MyServlet extends VaadinServlet {
 
                 // There is a current session, but is it ours? If it isn't then this thread
                 // is locked in another session. Return false.
-                // On the other hand, if the current session is this one, it has been set in VaadinSuspendingExecutor, which means
-                // that we have the session lock.
-                return current == this;
+                if (current != this) {
+                    return false;
+                }
+
+                // The current session is this one, but are we running from VaadinSuspendingExecutor
+                // and from the UIExecutor? If yes, UIExecutor uses ui.access() which grabs the lock,
+                // but someone else could have called VaadinSession.setCurrent()....
+                // We could in theory use a specialized ThreadLocal to check on this, but for now
+                // let's assume that only VaadinSuspendingExecutor runs Vaadin code in virtual threads.
+                return true;
             }
             // a regular thread. Nothing special going on - fall back to traditional lock checking.
             return super.hasLock();
