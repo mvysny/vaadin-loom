@@ -18,7 +18,7 @@ dependencies {
     // Vaadin
     implementation("com.vaadin:vaadin-core:$vaadinVersion") {
         afterEvaluate {
-            if (vaadin.productionMode) {
+            if (vaadin.productionMode.get()) {
                 exclude(module = "vaadin-dev")
             }
         }
@@ -34,7 +34,7 @@ dependencies {
     implementation("org.slf4j:slf4j-simple:2.0.7")
 
     // Fast Vaadin unit-testing with Karibu-Testing: https://github.com/mvysny/karibu-testing
-    testImplementation("com.github.mvysny.kaributesting:karibu-testing-v24:2.1.0")
+    testImplementation("com.github.mvysny.kaributesting:karibu-testing-v24:2.1.1")
     testImplementation("org.junit.jupiter:junit-jupiter-engine:5.9.3")
 }
 
