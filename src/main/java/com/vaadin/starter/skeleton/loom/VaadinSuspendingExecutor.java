@@ -121,7 +121,7 @@ public final class VaadinSuspendingExecutor implements AutoCloseable {
             if (isClosing.get()) {
                 // UI has been detached but the virtual thread is still around!
                 // This is called from VaadinSuspendingExecutor.close() when the Virtual Thread Executor is closed:
-                // it needs to interrupt() all active virtual threads, in order to terminate them.
+                // it needs to interrupt() all active virtual threads, in order to terminate them cleanly.
                 // VirtualThread.interrupt() calls VirtualThread.unpark(), which in turn calls VirtualThread.submitRunContinuation() which in turn call this.
                 //
                 // This is also called from `jcmd Thread.dump_to_file`; see https://github.com/mvysny/vaadin-loom/issues/1 for more details.
