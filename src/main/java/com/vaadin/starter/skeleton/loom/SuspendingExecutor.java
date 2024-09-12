@@ -6,6 +6,7 @@ import java.util.Objects;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 
 /**
  * "Chops" the execution of the runnable into smaller parts (called Continuations) and run them on given carrier thread executor.
@@ -30,9 +31,13 @@ public final class SuspendingExecutor implements AutoCloseable {
      * @param executor Executes given Runnables (Continuations) on an actual OS thread
      *                 (called a carrier thread). No magic happens in this executor - the
      *                 runnables are run until they're terminated.
+     * @param name the name prefix of the threads constructed for this executor.
      */
-    public SuspendingExecutor(@NotNull Executor executor) {
-        virtualThreadExecutor = Executors.newThreadPerTaskExecutor(LoomUtils.newVirtualBuilder(executor).factory());
+    public SuspendingExecutor(@NotNull Executor executor, @NotNull String name) {
+        final ThreadFactory virtualThreadFactory = LoomUtils.newVirtualBuilder(executor)
+                .name(name, 0)
+                .factory();
+        virtualThreadExecutor = Executors.newThreadPerTaskExecutor(virtualThreadFactory);
     }
 
     /**

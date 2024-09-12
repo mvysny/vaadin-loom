@@ -24,7 +24,7 @@ public final class VaadinSuspendingExecutor implements AutoCloseable {
 
     public VaadinSuspendingExecutor(@NotNull UI ui) {
         // the carrier threads will always execute with Vaadin Session lock held, and with a non-null UI.current
-        suspendingExecutor = new SuspendingExecutor(new UIExecutor(ui));
+        suspendingExecutor = new SuspendingExecutor(new UIExecutor(ui), "Vaadin-VirtualThreadExecutor-" + ui);
         this.ui = ui;
     }
 
