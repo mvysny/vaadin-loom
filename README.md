@@ -73,3 +73,8 @@ Please read [Java Generators](https://mvysny.github.io/java-generators/) on how 
 Note: this makes a couple of assumptions on the implementation of the JVM virtual threads.
 This may break. I'm testing on Oracle OpenJDK and Amazon Corretto and it seems to work,
 but this might break on other JVMs.
+
+# Pure Java Generators
+
+[The Mug library](https://github.com/google/mug) offers a very interesting way of [implementing generators without loom](https://github.com/google/mug/wiki/Iteration-Explained).
+Definitely worth a read.

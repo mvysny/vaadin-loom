@@ -9,6 +9,10 @@ import java.util.function.Supplier;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+/**
+ * Utility class which simplifies writing generators and converting them to plain
+ * {@link Iterator}s. See {@link #fibonacci()} source code for an example.
+ */
 public final class Iterators  {
     /**
      * Returns an iterator which invokes the function to calculate the next value on each iteration until the function returns `null`.
@@ -60,12 +64,19 @@ public final class Iterators  {
     }
 
     /**
-     * Generator calls {@link #yield(Object)} on this object when it has generated an item.
+     * The generator block calls {@link #yield(Object)} on this object when it has generated an item.
+     * <br/>
+     * Utility class, not intended to be instantiated by users. Expects
+     * to be used from a {@link Supplier}; see {@link #iterator(Consumer)}
+     * for exact details.
      * @param <E> the type of the items produced.
      */
     public static final class Yielder<E> {
         private Yielder() {}
 
+        /**
+         * Runs the block which calls this yielder.
+         */
         private ContinuationInvoker continuationInvoker = null;
         /**
          * This will temporarily hold the item passed to {@link #yield(Object)}.
@@ -78,6 +89,9 @@ public final class Iterators  {
          */
         public void yield(@Nullable E item) {
             availableItems.add(item);
+            // suspend the generator block, which allows owner Supplier to continue
+            // execution. The Supplier is specifically crafted in a way that it reads
+            // the item from the "availableItems" list of this Yielder.
             continuationInvoker.suspend();
         }
 
@@ -105,12 +119,12 @@ public final class Iterators  {
      * Allows you to build the iterator contents by calling {@link Yielder#yield(Object)}:
      * <pre>
      * val iterator = Iterators.iterator(y -> {
-     *     yield(1);
-     *     yield(2);
-     *     yield(3);
+     *     y.yield(1);
+     *     y.yield(2);
+     *     y.yield(3);
      * });
      * </pre>
-     * The call to yield() suspends the generator until the item is consumed by a call to {@link Iterator#next()}.
+     * The call to {@link Yielder#yield(Object) yield()} suspends the generator until the item is consumed by a call to {@link Iterator#next()}.
      * The iterator starts lazy, upon call to {@link Iterator#hasNext()} or {@link Iterator#next()}.
      * <p></p>
      * The generator may never terminate, thus producing infinite sequence of items. See {@link #fibonacci()}
@@ -124,6 +138,11 @@ public final class Iterators  {
         final Yielder<E> yielder = new Yielder<>();
         final ContinuationInvoker continuationInvoker = new ContinuationInvoker(() -> generator.accept(yielder));
         yielder.continuationInvoker = continuationInvoker;
+
+        // when this supplier is called, it calls the generator block. The generator
+        // block calls Yielder.yield() with an item, which causes the generator
+        // to suspend. This supplier can then simply read the yielded item from Yielder
+        // and return it.
         final Supplier<E> itemSupplier = () -> {
             if (!yielder.availableItems.isEmpty()) {
                 // multiple items have been yielded previously. Return them one-by-one.
@@ -157,6 +176,14 @@ public final class Iterators  {
         return iterator(y -> {
             int t1 = 0;
             int t2 = 1;
+
+            // NOTE: This while() block shows the InfiniteLoopStatement warning.
+            // While the warning is correct when using regular threads,
+            // IDEA doesn't know that the block is suspended via Loom and can be
+            // "killed" at any time, simply by not continuing the iteration.
+            // Therefore, we'll silence the warning.
+
+            //noinspection InfiniteLoopStatement
             while (true) {
                 y.yield(t1);
                 final int sum = t1 + t2;
