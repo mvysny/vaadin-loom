@@ -10,3 +10,7 @@ src/main/frontend/generated
 
 !**/src/main/dev-bundle/webapp/VAADIN/build
 kls_database.db
+.settings
+bin
+.classpath
+.project
