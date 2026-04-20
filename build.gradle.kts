@@ -48,16 +48,13 @@ tasks.withType<Test> {
         exceptionFormat = TestExceptionFormat.FULL
         showCauses = true
     }
+    jvmArgs(listOf("--add-opens", "java.base/java.lang=ALL-UNNAMED"))
 }
 
 application {
     mainClass = "com.vaadin.starter.skeleton.Main"
     // we are going really low-level here.
     applicationDefaultJvmArgs = listOf("--add-opens", "java.base/java.lang=ALL-UNNAMED")
-}
-
-tasks.withType<Test> {
-    jvmArgs(listOf("--add-opens", "java.base/java.lang=ALL-UNNAMED"))
 }
 
 tasks.withType<JavaExec> {
