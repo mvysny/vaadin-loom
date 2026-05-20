@@ -78,3 +78,7 @@ but this might break on other JVMs.
 
 [The Mug library](https://github.com/google/mug) offers a very interesting way of [implementing generators without loom](https://github.com/google/mug/wiki/Iteration-Explained).
 Definitely worth a read.
+
+# License
+
+Licensed under the [MIT License](LICENSE).
