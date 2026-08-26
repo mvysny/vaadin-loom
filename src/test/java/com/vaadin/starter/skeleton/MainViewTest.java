@@ -7,13 +7,18 @@ import com.github.mvysny.kaributesting.v10.pro.ConfirmDialogKt;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.confirmdialog.ConfirmDialog;
+import com.vaadin.flow.server.VaadinSession;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import static com.github.mvysny.kaributesting.v10.LocatorJ.*;
 import static com.github.mvysny.kaributesting.v10.NotificationsKt.expectNotifications;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * In this app we employ the browserless testing technique, which allows for very quick and easy test run.
@@ -30,6 +35,11 @@ import static com.github.mvysny.kaributesting.v10.NotificationsKt.expectNotifica
 public class MainViewTest {
     private static Routes routes;
 
+    /**
+     * Collects everything handed to the Vaadin session error handler during a test.
+     */
+    private List<Throwable> reportedErrors;
+
     @BeforeAll
     public static void createRoutes() {
         // Route discovery involves classpath scanning and is an expensive operation.
@@ -43,6 +53,8 @@ public class MainViewTest {
         // MockVaadin.setup() registers all @Routes, prepares the Vaadin instances for us
         // (the UI, the VaadinSession, VaadinRequest, VaadinResponse, ...) and navigates to the root route.
         MockVaadin.setup(MockedUI::new, new MockVirtualThreadAwareServlet(routes));
+        reportedErrors = new ArrayList<>();
+        VaadinSession.getCurrent().setErrorHandler(event -> reportedErrors.add(event.getThrowable()));
     }
 
     @AfterEach
@@ -96,5 +108,41 @@ public class MainViewTest {
 
         // check that the notification has been shown
         expectNotifications("Nope, not sure");
+    }
+
+    @Test
+    public void testBlockingDialogYesThenNo() {
+        _click(_get(Button.class, spec -> spec.withText("Blocking dialog")));
+
+        // First confirm dialog: yes
+        _assertOne(ConfirmDialog.class);
+        ConfirmDialogKt._fireConfirm(_get(ConfirmDialog.class));
+        // Second confirm dialog: no
+        _assertOne(ConfirmDialog.class);
+        ConfirmDialogKt._fireCancel(_get(ConfirmDialog.class));
+
+        expectNotifications("Yes but no");
+    }
+
+    /**
+     * The user opens a blocking dialog and then navigates away without answering it.
+     * The detach closes the executor, which interrupts the still-parked virtual thread;
+     * that interrupt is expected and must not be reported as an application error.
+     */
+    @Test
+    public void testDetachWhileTheBlockingDialogIsStillOpen() {
+        final MainView view = _get(MainView.class);
+        _click(_get(Button.class, spec -> spec.withText("Blocking dialog")));
+        _assertOne(ConfirmDialog.class);
+
+        // detaching runs MainView.onDetach() which closes the VaadinSuspendingExecutor
+        view.getElement().removeFromParent();
+        MockVaadin.clientRoundtrip(true);
+
+        assertEquals(List.of(), reportedErrors,
+                "closing the executor while the dialog is open must not report an error, got " + reportedErrors);
+        _assertNone(MainView.class);
+        // the interrupted confirmDialog() closed its dialog on the way out
+        _assertNone(ConfirmDialog.class);
     }
 }
