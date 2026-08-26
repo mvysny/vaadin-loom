@@ -33,6 +33,16 @@ public final class ContinuationInvoker {
      * continuations to run.
      */
     private volatile boolean executionDone = false;
+    /**
+     * If the {@link #runnable} terminated by throwing, the throwable is stored here and rethrown
+     * from {@link #next()}. Otherwise null.
+     */
+    private volatile Throwable failure = null;
+    /**
+     * Whether {@link #failure}'s stack trace has already been stitched by {@link #rethrowFailure()}.
+     * Guards against appending the caller frames over and over as the same failure is rethrown.
+     */
+    private boolean failureStitched = false;
 
     private BlockingQueue<Object> continuationUnpark = null;
     /**
@@ -59,9 +69,14 @@ public final class ContinuationInvoker {
      * @return true if there are follow-up continuations, false if there will be no follow-up continuations and
      * {@link #runnable} finished its execution.
      * @throws IllegalStateException if the execution is done and there are no more continuations.
+     * @throws RuntimeException if the {@link #runnable} terminated by throwing; the throwable
+     * thrown by the runnable is rethrown as-is if it is a {@link RuntimeException} or an {@link Error},
+     * and wrapped otherwise. Its stack trace is amended with the frames of the caller of this
+     * function, see {@link #stitchCallerFrames(Throwable)}.
      */
     public boolean next() {
         if (isDone()) {
+            rethrowFailure();
             throw new IllegalStateException("Execution is done");
         }
         if (continuationUnpark == null) {
@@ -78,6 +93,11 @@ public final class ContinuationInvoker {
             final Thread thread = virtualThreadFactory.newThread(() -> {
                 try {
                     runnable.run();
+                } catch (Throwable t) {
+                    // Don't let this escape to the virtual thread's uncaught exception handler:
+                    // to the caller of next() the runnable would then simply look terminated and
+                    // the failure would be silently swallowed. Rethrow it from next() instead.
+                    failure = t;
                 } finally {
                     executionDone = true;
                 }
@@ -93,6 +113,7 @@ public final class ContinuationInvoker {
                 throw new IllegalStateException("Expected to run the continuation in VirtualThread.start() but nothing was done");
             }
 
+            rethrowFailure();
             return !isDone();
         } else {
             // This deque is populated only from this function, and then it's cleaned immediately.
@@ -118,6 +139,7 @@ public final class ContinuationInvoker {
                 throw new IllegalStateException("Expected to run the continuation in unpark() but nothing was done");
             }
 
+            rethrowFailure();
             // To avoid the compiler optimizing this to false, executionDone must be volatile.
             if (isDone()) {
                 // runnable terminated. There will be no more continuations => return false.
@@ -130,6 +152,59 @@ public final class ContinuationInvoker {
             }
             return true;
         }
+    }
+
+    /**
+     * If the {@link #runnable} died on a throwable, rethrows it; does nothing otherwise.
+     * Called repeatedly: every {@link #next()} after the failure rethrows the same throwable,
+     * so a failed generator never looks like an exhausted one.
+     * <p></p>
+     * The throwable is rethrown as-is (rather than wrapped) so that the caller may still catch it
+     * by its type; only its stack trace is amended, see {@link #stitchCallerFrames(Throwable)}.
+     */
+    private void rethrowFailure() {
+        final Throwable t = failure;
+        if (t == null) {
+            return;
+        }
+        if (!failureStitched) {
+            failureStitched = true;
+            stitchCallerFrames(t);
+        }
+        if (t instanceof RuntimeException e) {
+            throw e;
+        }
+        if (t instanceof Error e) {
+            throw e;
+        }
+        throw new RuntimeException(t);
+    }
+
+    /**
+     * Appends the frames of the current (caller) thread to the stack trace of given throwable.
+     * <p></p>
+     * The throwable was thrown on the virtual thread running the {@link #runnable}, and a stack
+     * walk of a virtual thread stops at {@link Thread#run()} - it can not see the frames of the
+     * carrier below the mount point. The trace therefore ends at {@code VirtualThread.run()} and
+     * says nothing about who was driving the continuation, which makes it very hard to place.
+     * <p></p>
+     * Those missing frames are no fiction though: this class runs its continuations synchronously,
+     * inline on the thread calling {@link #next()} - the runnable really is executing as a nested
+     * call of {@link #next()}. So we simply restore the bottom half of the stack that the mount
+     * barrier hid, yielding one continuous trace: the runnable frames, then {@code VirtualThread.run()}
+     * marking the Loom boundary, then {@link #next()} and its callers.
+     * The frames of this function and of {@link #rethrowFailure()} are kept rather than stripped:
+     * they mark where the stitch happened, so that nobody reading the trace mistakes the two halves
+     * for a single uninterrupted stack walk.
+     * @param t the throwable to amend, not null.
+     */
+    private static void stitchCallerFrames(@NotNull Throwable t) {
+        final StackTraceElement[] runnableFrames = t.getStackTrace();
+        final StackTraceElement[] callerFrames = new Throwable().getStackTrace();
+        final StackTraceElement[] stitched = new StackTraceElement[runnableFrames.length + callerFrames.length];
+        System.arraycopy(runnableFrames, 0, stitched, 0, runnableFrames.length);
+        System.arraycopy(callerFrames, 0, stitched, runnableFrames.length, callerFrames.length);
+        t.setStackTrace(stitched);
     }
 
     /**

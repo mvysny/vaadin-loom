@@ -8,6 +8,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.stream.Collectors;
 
 import static com.vaadin.starter.skeleton.loom.Iterators.*;
 import static org.junit.jupiter.api.Assertions.*;
@@ -97,23 +98,47 @@ public class IteratorsTest {
     }
 
     /**
-     * KNOWN LIMITATION, documented here so that it doesn't change silently.
-     * <p></p>
-     * When the generator block throws, the exception is thrown on the generator's virtual thread
-     * and is therefore handed to that thread's default uncaught exception handler (it gets printed
-     * to stderr). It does NOT propagate out of {@link Iterator#next()}: the invoker merely observes
-     * that the runnable terminated, so the iteration is silently truncated.
-     * <p></p>
-     * If this is ever fixed, this test will fail - flip it to assert that the exception propagates.
+     * When the generator block throws, the exception propagates out of the {@link Iterator}
+     * (from whichever of {@link Iterator#hasNext()} / {@link Iterator#next()} happens to run the
+     * failing continuation), instead of the iteration being silently truncated.
      */
     @Test
-    public void testGeneratorFailureSilentlyTruncatesTheIteration() {
-        final List<Integer> actual = toStream(Iterators.<Integer>iterator(y -> {
+    public void testGeneratorFailurePropagates() {
+        final Iterator<Integer> it = Iterators.iterator(y -> {
             y.yield(1);
             throw new RuntimeException("simulated");
-        }))
-                .toList();
-        assertArrayEquals(new Integer[] { 1 }, actual.toArray(),
-                "the generator failure is swallowed and the iteration just ends");
+        });
+        assertEquals(1, it.next());
+        final RuntimeException ex = assertThrows(RuntimeException.class, it::hasNext);
+        assertEquals("simulated", ex.getMessage());
+    }
+
+    /**
+     * The generator runs its continuations inline on the thread calling {@link Iterator#next()},
+     * so the failure must read as if the generator block had been called synchronously: the original
+     * exception type, and one continuous stack trace spanning both the generator and the consumer.
+     */
+    @Test
+    public void testGeneratorFailureStackTraceSpansGeneratorAndConsumer() {
+        final Iterator<Integer> it = Iterators.iterator(y -> {
+            throw new IllegalArgumentException("simulated");
+        });
+        final IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, it::hasNext);
+        final String trace = Arrays.stream(ex.getStackTrace())
+                .map(StackTraceElement::toString)
+                .collect(Collectors.joining("\n"));
+        assertTrue(trace.contains(ContinuationInvoker.class.getName() + ".next"),
+                () -> "expected next() in the trace, got:\n" + trace);
+        assertTrue(trace.contains(IteratorsTest.class.getName() + ".testGeneratorFailureStackTraceSpansGeneratorAndConsumer"),
+                () -> "expected the consuming call site in the trace, got:\n" + trace);
+    }
+
+    @Test
+    public void testGeneratorFailurePropagatesFromTheFirstContinuation() {
+        final Iterator<Integer> it = Iterators.iterator(y -> {
+            throw new RuntimeException("simulated");
+        });
+        final RuntimeException ex = assertThrows(RuntimeException.class, it::hasNext);
+        assertEquals("simulated", ex.getMessage());
     }
 }

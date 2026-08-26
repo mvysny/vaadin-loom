@@ -1,8 +1,10 @@
 package com.vaadin.starter.skeleton.loom;
 
+import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicReference;
@@ -97,5 +99,87 @@ public class ContinuationInvokerTest {
         // but now there is nothing to unpark: the runnable isn't waiting in suspend().
         final IllegalStateException ex = assertThrows(IllegalStateException.class, invoker::next);
         assertEquals("Expected to run the continuation in unpark() but nothing was done", ex.getMessage());
+    }
+
+    @Test
+    public void testRunnableFailureIsRethrownFromNext() {
+        final AtomicReference<ContinuationInvoker> self = new AtomicReference<>();
+        final ContinuationInvoker invoker = new ContinuationInvoker(() -> {
+            self.get().suspend();
+            throw new IllegalArgumentException("simulated");
+        });
+        self.set(invoker);
+
+        assertTrue(invoker.next());
+        final IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, invoker::next);
+        assertEquals("simulated", ex.getMessage());
+        assertTrue(invoker.isDone());
+        // the failure isn't consumed: a failed invoker must never look like a cleanly finished one.
+        assertEquals("simulated", assertThrows(IllegalArgumentException.class, invoker::next).getMessage());
+    }
+
+    @Test
+    public void testRunnableFailureInTheFirstContinuationIsRethrownFromNext() {
+        final ContinuationInvoker invoker = new ContinuationInvoker(() -> {
+            throw new IllegalArgumentException("simulated");
+        });
+        final IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, invoker::next);
+        assertEquals("simulated", ex.getMessage());
+    }
+
+    @Test
+    public void testRunnableFailureIsRethrownWithItsOriginalType() {
+        // the throwable must not be wrapped: the caller must be able to catch it by its own type.
+        final ContinuationInvoker invoker = new ContinuationInvoker(() -> {
+            throw new IllegalArgumentException("simulated");
+        });
+        assertThrows(IllegalArgumentException.class, invoker::next);
+    }
+
+    /**
+     * A stack walk of a virtual thread can not see past the mount point, so the trace of a throwable
+     * thrown by the runnable ends at {@code VirtualThread.run()} and says nothing about who was
+     * driving the continuation. The invoker stitches the caller frames back on.
+     */
+    @Test
+    public void testRunnableFailureStackTraceContainsTheCallerFrames() {
+        final ContinuationInvoker invoker = new ContinuationInvoker(() -> {
+            throw new IllegalArgumentException("simulated");
+        });
+        final IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, invoker::next);
+        final List<String> frames = framesOf(ex);
+
+        // the runnable half comes first and is intact...
+        assertEquals(ContinuationInvokerTest.class.getName() + ".lambda$" + "testRunnableFailureStackTraceContainsTheCallerFrames$" + "0",
+                frames.get(0), () -> "expected the throw site on top, got " + frames);
+        // ... followed by the stitching frames marking the boundary, then by the caller half.
+        final int boundary = frames.indexOf("java.lang.VirtualThread.run");
+        assertTrue(boundary > 0, () -> "expected the Loom boundary frame, got " + frames);
+        assertEquals(List.of(ContinuationInvoker.class.getName() + ".stitchCallerFrames",
+                        ContinuationInvoker.class.getName() + ".rethrowFailure",
+                        ContinuationInvoker.class.getName() + ".next"),
+                frames.subList(boundary + 1, boundary + 4),
+                () -> "expected the stitch marker frames and then next(), got " + frames);
+        assertTrue(frames.contains(ContinuationInvokerTest.class.getName() + ".testRunnableFailureStackTraceContainsTheCallerFrames"),
+                () -> "expected the calling test method in the trace, got " + frames);
+    }
+
+    @Test
+    public void testStackTraceIsStitchedOnlyOnce() {
+        // the same failure is rethrown by every subsequent next(); the trace must not grow each time.
+        final ContinuationInvoker invoker = new ContinuationInvoker(() -> {
+            throw new IllegalArgumentException("simulated");
+        });
+        final int length = assertThrows(IllegalArgumentException.class, invoker::next).getStackTrace().length;
+        for (int i = 0; i < 3; i++) {
+            assertEquals(length, assertThrows(IllegalArgumentException.class, invoker::next).getStackTrace().length);
+        }
+    }
+
+    @NotNull
+    private static List<String> framesOf(@NotNull Throwable t) {
+        return Arrays.stream(t.getStackTrace())
+                .map(it -> it.getClassName() + "." + it.getMethodName())
+                .toList();
     }
 }
