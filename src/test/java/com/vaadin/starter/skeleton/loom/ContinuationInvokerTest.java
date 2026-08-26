@@ -138,30 +138,45 @@ public class ContinuationInvokerTest {
 
     /**
      * A stack walk of a virtual thread can not see past the mount point, so the trace of a throwable
-     * thrown by the runnable ends at {@code VirtualThread.run()} and says nothing about who was
+     * thrown by the runnable ends at the virtual thread entry point and says nothing about who was
      * driving the continuation. The invoker stitches the caller frames back on.
+     * <p></p>
+     * Note that this asserts on real method names only. Synthetic names (a lambda gets a
+     * {@code lambda$method$N} name whose counter is assigned per class in compilation order) are an
+     * unspecified compiler detail and differ between javac versions, and the name of the virtual
+     * thread entry frame belongs to the JDK - neither is something this test should pin down.
      */
     @Test
     public void testRunnableFailureStackTraceContainsTheCallerFrames() {
-        final ContinuationInvoker invoker = new ContinuationInvoker(() -> {
-            throw new IllegalArgumentException("simulated");
-        });
+        final ContinuationInvoker invoker = new ContinuationInvoker(ContinuationInvokerTest::throwSimulated);
         final IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, invoker::next);
         final List<String> frames = framesOf(ex);
 
-        // the runnable half comes first and is intact...
-        assertEquals(ContinuationInvokerTest.class.getName() + ".lambda$" + "testRunnableFailureStackTraceContainsTheCallerFrames$" + "0",
-                frames.get(0), () -> "expected the throw site on top, got " + frames);
-        // ... followed by the stitching frames marking the boundary, then by the caller half.
-        final int boundary = frames.indexOf("java.lang.VirtualThread.run");
-        assertTrue(boundary > 0, () -> "expected the Loom boundary frame, got " + frames);
+        // the runnable half comes first, with the throw site on top, intact.
+        assertEquals(ContinuationInvokerTest.class.getName() + ".throwSimulated", frames.get(0),
+                () -> "expected the throw site on top, got " + frames);
+
+        // the two halves are joined by the stitching frames, which run straight into next().
+        final int stitch = frames.indexOf(ContinuationInvoker.class.getName() + ".stitchCallerFrames");
+        assertTrue(stitch > 0, () -> "expected the stitch marker frames, got " + frames);
         assertEquals(List.of(ContinuationInvoker.class.getName() + ".stitchCallerFrames",
                         ContinuationInvoker.class.getName() + ".rethrowFailure",
                         ContinuationInvoker.class.getName() + ".next"),
-                frames.subList(boundary + 1, boundary + 4),
-                () -> "expected the stitch marker frames and then next(), got " + frames);
-        assertTrue(frames.contains(ContinuationInvokerTest.class.getName() + ".testRunnableFailureStackTraceContainsTheCallerFrames"),
-                () -> "expected the calling test method in the trace, got " + frames);
+                frames.subList(stitch, stitch + 3),
+                () -> "expected the stitch to run into next(), got " + frames);
+
+        // and the caller half below the stitch reaches all the way up to whoever called next().
+        assertTrue(frames.subList(stitch, frames.size())
+                        .contains(ContinuationInvokerTest.class.getName() + ".testRunnableFailureStackTraceContainsTheCallerFrames"),
+                () -> "expected the calling test method below the stitch, got " + frames);
+    }
+
+    /**
+     * A named throw site, so that the trace assertions above don't depend on how the compiler
+     * happens to name a lambda.
+     */
+    private static void throwSimulated() {
+        throw new IllegalArgumentException("simulated");
     }
 
     @Test
