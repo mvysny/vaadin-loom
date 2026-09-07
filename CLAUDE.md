@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project overview
 
-Prototype that implements blocking dialogs (and generator iterators) in Vaadin Flow using Project Loom virtual threads. Vaadin Boot runs embedded Jetty from `Main.main()`; no Spring. Requires Java 21+.
+Prototype that implements blocking dialogs (and generator iterators) in Vaadin Flow using Project Loom virtual threads. Vaadin Boot runs embedded Jetty from `Main.main()`; no Spring. Compiles for Java 21 but effectively requires Java 24+ (see subtlety 3 below).
 
 Background reading before modifying the loom code: [Oracle's virtual-threads article](https://blogs.oracle.com/javamagazine/post/java-loom-virtual-threads-platform-threads) and [Vaadin and Blocking Dialogs](https://mvysny.github.io/vaadin-blocking-dialogs/).
 
@@ -29,10 +29,11 @@ The whole trick of the project is to mount Loom virtual threads onto Vaadin's UI
 - `VaadinSuspendingExecutor` — plugs `UI.access` in as the carrier executor so every continuation runs under the Vaadin session lock. On each continuation it re-seeds `UI.setCurrent` / `VaadinSession.setCurrent` because virtual threads don't inherit these from the carrier. It also swallows the `InterruptedException` that `shutdownNow()` fires into parked virtual threads during `close()`.
 - `MainView` — demo: creates/destroys one `VaadinSuspendingExecutor` per attach/detach, and `confirmDialog()` blocks on a `CompletableFuture.get()` that only works because we're on a virtual thread.
 
-Two cross-cutting subtleties:
+Three cross-cutting subtleties:
 
 1. **Servlet threads must be platform threads.** Continuations cannot run on a virtual carrier — you'd hit `WrongThreadException` at `VirtualThread.runContinuation`. `Main` disables Vaadin Boot's virtual-thread request serving (`useVirtualThreadsIfAvailable(false)`), and `UIExecutor.execute` additionally throws if it ever sees a virtual carrier. If you touch request-serving config, preserve this.
 2. **`VaadinSession.hasLock()` lies for virtual threads.** The `ReentrantLock` is held by the carrier platform thread, so `isHeldByCurrentThread()` returns `false` on the virtual thread even though we effectively hold the lock. `MyServlet` installs a `VirtualThreadAwareVaadinSession` that short-circuits `hasLock()` by checking `VaadinSession.getCurrent() == this`. Tests mirror this via `MockVirtualThreadAwareServlet`. Any new servlet/session subclass must preserve this override or Vaadin internals will reject our UI updates.
+3. **JDK 21–23 deadlock on `synchronized` (JEP 491).** Before JDK 24, a virtual thread that parks while holding a monitor pins and parks its *carrier* instead of unmounting. Our carrier is the UI thread inside `UI.access()` with the session lock held, so the request never completes, the dialog never renders, and the session is deadlocked for good ([issue #2](https://github.com/mvysny/vaadin-loom/issues/2)). The same applies to `Yielder.yield()` inside `synchronized`: the thread calling `Iterator.next()` blocks forever. Any monitor above the park triggers it, including JDK-internal ones, so it can't be avoided by coding discipline; that is why the README says Java 24+ is required in practice. The two tests covering this (`testParkingInsideSynchronizedUnmountsTheVirtualThread`, `testYieldInsideSynchronizedSuspendsTheGenerator`) are gated with `@EnabledForJreRange(minVersion = 24)` because on older JDKs they don't fail, they hang the whole test JVM. Never remove that gate while CI still runs JDK 21.
 
 ## Generators (Iterators.java)
 

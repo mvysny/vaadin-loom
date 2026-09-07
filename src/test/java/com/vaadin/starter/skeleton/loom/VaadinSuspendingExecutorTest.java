@@ -10,6 +10,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledForJreRange;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -131,6 +132,40 @@ public class VaadinSuspendingExecutorTest {
         assertFalse(resumedAfterPark.get(), "the parked runnable must have been killed, not resumed");
         assertEquals(List.of(), reportedErrors,
                 "the interrupt caused by close() is expected and must be swallowed, got " + reportedErrors);
+    }
+
+    /**
+     * Parking while holding a monitor must unmount the virtual thread like any other park.
+     * On JDK 21-23 it doesn't: the virtual thread pins and parks its carrier instead, which
+     * is the UI thread inside {@code UI.access()} holding the session lock - {@code clientRoundtrip()}
+     * would never return and the test would hang, hence the JDK gate. See
+     * <a href="https://github.com/mvysny/vaadin-loom/issues/2">issue #2</a> and JEP 491.
+     */
+    @Test
+    @EnabledForJreRange(minVersion = 24, disabledReason = "Parking inside synchronized pins the carrier before JEP 491 (JDK 24)")
+    public void testParkingInsideSynchronizedUnmountsTheVirtualThread() {
+        final Object monitor = new Object();
+        final CompletableFuture<Boolean> future = new CompletableFuture<>();
+        final AtomicBoolean resumedAfterPark = new AtomicBoolean();
+
+        try (VaadinSuspendingExecutor executor = new VaadinSuspendingExecutor(UI.getCurrent())) {
+            executor.run(() -> {
+                synchronized (monitor) {
+                    try {
+                        resumedAfterPark.set(future.get());
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            });
+            MockVaadin.clientRoundtrip();
+            assertFalse(resumedAfterPark.get(), "the runnable must be parked inside the synchronized block");
+
+            future.complete(true);
+            MockVaadin.clientRoundtrip();
+            assertTrue(resumedAfterPark.get(), "the runnable must have resumed after the future completed");
+        }
+        assertEquals(List.of(), reportedErrors);
     }
 
     @Test

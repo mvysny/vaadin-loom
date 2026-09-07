@@ -1,6 +1,7 @@
 package com.vaadin.starter.skeleton.loom;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledForJreRange;
 
 import java.util.Arrays;
 import java.util.Deque;
@@ -131,6 +132,27 @@ public class IteratorsTest {
                 () -> "expected next() in the trace, got:\n" + trace);
         assertTrue(trace.contains(IteratorsTest.class.getName() + ".testGeneratorFailureStackTraceSpansGeneratorAndConsumer"),
                 () -> "expected the consuming call site in the trace, got:\n" + trace);
+    }
+
+    /**
+     * Yielding while holding a monitor must suspend the generator like any other yield.
+     * On JDK 21-23 it doesn't: the virtual thread pins and parks its carrier - the thread calling
+     * {@code next()} - so the first {@code next()} would never return, hence the JDK gate. See
+     * <a href="https://github.com/mvysny/vaadin-loom/issues/2">issue #2</a> and JEP 491.
+     */
+    @Test
+    @EnabledForJreRange(minVersion = 24, disabledReason = "Parking inside synchronized pins the carrier before JEP 491 (JDK 24)")
+    public void testYieldInsideSynchronizedSuspendsTheGenerator() {
+        final Object monitor = new Object();
+        final List<Integer> actual = toStream(Iterators.<Integer>iterator(y -> {
+            synchronized (monitor) {
+                y.yield(1);
+                y.yield(2);
+            }
+            y.yield(3);
+        }))
+                .toList();
+        assertArrayEquals(new Integer[] { 1, 2, 3 }, actual.toArray());
     }
 
     @Test
