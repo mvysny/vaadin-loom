@@ -1,3 +1,8 @@
+# Copyright 2000-2026 Vaadin Ltd.
+#
+# Licensed under the MIT License. See the LICENSE file in the project root
+# for the full license text.
+
 # Allows you to run this app easily as a docker container.
 # See README.md for more details.
 #

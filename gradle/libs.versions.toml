@@ -1,3 +1,8 @@
+# Copyright 2000-2026 Vaadin Ltd.
+#
+# Licensed under the MIT License. See the LICENSE file in the project root
+# for the full license text.
+
 [versions]
 vaadin = "25.2.7"
 # https://repo1.maven.org/maven2/org/slf4j/slf4j-api/
