@@ -154,10 +154,10 @@ public class SessionLockFromVirtualThreadTest {
     }
 
     /**
-     * A virtual thread started from inside a {@code run {}} block inherits {@code UIExecutor} as its
-     * scheduler but carries no marker, so it is back to spinning on the session lock. The depth guard
-     * in {@code UIExecutor.execute()} must cut that short instead of letting it reach
-     * {@link StackOverflowError}.
+     * A virtual thread started from inside {@link VaadinSuspendingExecutor#run} inherits
+     * {@code UIExecutor} as its scheduler but carries no marker, so it is back to spinning on the
+     * session lock. The depth guard in {@code UIExecutor.execute()} must cut that short instead of
+     * letting it reach {@link StackOverflowError}.
      */
     @Test
     public void testRunawayContinuationIsRejectedRatherThanOverflowingTheStack() {
