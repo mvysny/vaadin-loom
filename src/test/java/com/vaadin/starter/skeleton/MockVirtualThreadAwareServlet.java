@@ -9,15 +9,18 @@ package com.vaadin.starter.skeleton;
 import com.github.mvysny.kaributesting.v10.Routes;
 import com.github.mvysny.kaributesting.v10.mock.MockService;
 import com.github.mvysny.kaributesting.v10.mock.MockVaadinServlet;
-import com.github.mvysny.kaributesting.v10.mock.MockVaadinSession;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.function.DeploymentConfiguration;
 import com.vaadin.flow.server.*;
+import com.vaadin.starter.skeleton.loom.VirtualThreadAwareLock;
 import kotlin.jvm.functions.Function0;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.concurrent.locks.Lock;
+
 /**
- * We need to hack VaadinSession.hasLock() to work with virtual threads.
+ * The test-side counterpart of {@link MyServlet}: installs the {@link VirtualThreadAwareLock} so
+ * that tests exercise the same session locking the app uses.
  */
 public class MockVirtualThreadAwareServlet extends MockVaadinServlet {
     public MockVirtualThreadAwareServlet(@NotNull Routes routes) {
@@ -43,27 +46,8 @@ public class MockVirtualThreadAwareServlet extends MockVaadinServlet {
         }
 
         @Override
-        protected VaadinSession createVaadinSession(VaadinRequest request) {
-            return new VirtualThreadAwareVaadinSession(this, getUiFactory());
-        }
-    }
-
-    private static class VirtualThreadAwareVaadinSession extends MockVaadinSession {
-        public VirtualThreadAwareVaadinSession(@NotNull VaadinService service, @NotNull Function0<? extends UI> uiFactory) {
-            super(service, uiFactory);
-        }
-
-        @Override
-        public boolean hasLock() {
-            if (Thread.currentThread().isVirtual()) {
-                // not possible?
-                // ((ReentrantLock) getLockInstance()).isHeldByThread(UIExecutor.currentCarrierThread());
-
-                // if the current session is this one, it has been set in VaadinSuspendingExecutor, which means
-                // that we have the session lock.
-                return VaadinSession.getCurrent() == this;
-            }
-            return super.hasLock();
+        protected Lock getSessionLock(WrappedSession wrappedSession) {
+            return VirtualThreadAwareLock.wrap(this, wrappedSession, super.getSessionLock(wrappedSession));
         }
     }
 }

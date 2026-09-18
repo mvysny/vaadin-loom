@@ -174,6 +174,58 @@ public class VaadinSuspendingExecutorTest {
         assertEquals(List.of(), reportedErrors);
     }
 
+    /**
+     * The thread that unparks a suspended runnable is the one that submits its next continuation, so
+     * {@code UIExecutor} gets called on it. That thread is very often virtual - anything handed out by
+     * {@code Executors.newVirtualThreadPerTaskExecutor()} - and must keep working, which is why
+     * {@code UIExecutor.execute()} may not reject virtual callers.
+     */
+    @Test
+    public void testResumesWhenAFutureIsCompletedByABackgroundVirtualThread() throws InterruptedException {
+        final CompletableFuture<String> future = new CompletableFuture<>();
+        final AtomicReference<String> resumedWith = new AtomicReference<>();
+
+        try (VaadinSuspendingExecutor executor = new VaadinSuspendingExecutor(UI.getCurrent())) {
+            executor.run(() -> resumedWith.set(get(future)));
+            MockVaadin.clientRoundtrip();
+            assertNull(resumedWith.get(), "the runnable must be parked on the future");
+
+            Thread.ofVirtual().start(() -> future.complete("hello")).join();
+            MockVaadin.clientRoundtrip();
+        }
+        assertEquals("hello", resumedWith.get());
+        assertEquals(List.of(), reportedErrors);
+    }
+
+    /**
+     * Same, for the case where the unparking thread is another runnable of this very executor.
+     */
+    @Test
+    public void testOneRunnableCanUnparkAnother() {
+        final CompletableFuture<String> future = new CompletableFuture<>();
+        final AtomicReference<String> resumedWith = new AtomicReference<>();
+
+        try (VaadinSuspendingExecutor executor = new VaadinSuspendingExecutor(UI.getCurrent())) {
+            executor.run(() -> resumedWith.set(get(future)));
+            MockVaadin.clientRoundtrip();
+            assertNull(resumedWith.get(), "the runnable must be parked on the future");
+
+            executor.run(() -> future.complete("hello"));
+            MockVaadin.clientRoundtrip();
+            MockVaadin.clientRoundtrip();
+        }
+        assertEquals("hello", resumedWith.get());
+        assertEquals(List.of(), reportedErrors);
+    }
+
+    private static String get(CompletableFuture<String> future) {
+        try {
+            return future.get();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     @Test
     public void testCloseIsIdempotent() {
         final VaadinSuspendingExecutor executor = new VaadinSuspendingExecutor(UI.getCurrent());
