@@ -95,7 +95,9 @@ public final class ContinuationInvoker {
                     continuationsInvoked++;
                 }
             };
-            final ThreadFactory virtualThreadFactory = LoomUtils.newVirtualBuilder(synchronousExecutor).factory();
+            // a virtual thread the runnable starts inherits synchronousExecutor, which would run it
+            // inline on the runnable's own virtual thread - newVirtualThreadFactory carries it elsewhere
+            final ThreadFactory virtualThreadFactory = LoomUtils.newVirtualThreadFactory(synchronousExecutor, "loom-generator-");
             final Thread thread = virtualThreadFactory.newThread(() -> {
                 try {
                     runnable.run();

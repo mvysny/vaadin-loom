@@ -12,8 +12,13 @@ import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 
 import static com.vaadin.starter.skeleton.loom.VirtualThreadTestUtils.runInVirtualThread;
 import static org.junit.jupiter.api.Assertions.*;
@@ -105,6 +110,45 @@ public class ContinuationInvokerTest {
         // but now there is nothing to unpark: the runnable isn't waiting in suspend().
         final IllegalStateException ex = assertThrows(IllegalStateException.class, invoker::next);
         assertEquals("Expected to run the continuation in unpark() but nothing was done", ex.getMessage());
+    }
+
+    @Test
+    public void testThreadOfVirtualStartedByTheRunnableRunsBesideIt() {
+        assertStartedThreadRunsBesideTheRunnable(task -> Thread.ofVirtual().start(task));
+    }
+
+    /** Looks like it asks for the default scheduler, and inherits just the same. */
+    @Test
+    public void testVirtualThreadPerTaskExecutorStartedByTheRunnableRunsBesideIt() {
+        assertStartedThreadRunsBesideTheRunnable(task -> {
+            final ExecutorService pool = Executors.newVirtualThreadPerTaskExecutor();
+            pool.submit(task);
+            pool.shutdown();
+        });
+    }
+
+    /**
+     * The runnable spins, never unmounting, until {@code start} has run a task. The started thread
+     * inherits the invoker's inline scheduler, so this only ends if it's carried somewhere else.
+     */
+    private static void assertStartedThreadRunsBesideTheRunnable(@NotNull Consumer<Runnable> start) {
+        final AtomicBoolean ran = new AtomicBoolean();
+        final AtomicBoolean ranWhileMounted = new AtomicBoolean();
+        final AtomicReference<ContinuationInvoker> self = new AtomicReference<>();
+        final ContinuationInvoker invoker = new ContinuationInvoker(() -> {
+            start.accept(() -> ran.set(true));
+            final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+            while (!ran.get() && System.nanoTime() < deadline) {
+                Thread.onSpinWait();
+            }
+            ranWhileMounted.set(ran.get());
+            self.get().suspend();
+        });
+        self.set(invoker);
+
+        assertTrue(invoker.next());
+        assertTrue(ranWhileMounted.get(), "the started thread never ran while the runnable was mounted");
+        assertFalse(invoker.next());
     }
 
     @Test

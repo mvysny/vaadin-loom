@@ -8,14 +8,10 @@ package com.vaadin.starter.skeleton.loom;
 
 import org.jetbrains.annotations.NotNull;
 
-import java.util.Collections;
 import java.util.Objects;
-import java.util.Set;
-import java.util.WeakHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
 
 /**
  * "Chops" the execution of the runnable into smaller parts (called Continuations) and run them on given carrier thread executor.
@@ -27,15 +23,10 @@ import java.util.concurrent.ThreadFactory;
  * the carrier thread, allowing the carrier thread Runnable to finish. When the Runnable execution unblocks,
  * a new continuation is passed into the carrier thread executor, and the virtual thread mounts on top of a carrier thread.
  * <p></p>
- * <b>Only this executor's own threads reach the carrier executor.</b>
- * A virtual thread created with no explicit scheduler inherits the scheduler of the virtual thread
- * that creates it - {@code Thread.ofVirtual()} and {@code Executors.newVirtualThreadPerTaskExecutor()}
- * alike. Left alone, a thread started inside one of our runnables would run on the carrier executor,
- * which for {@link VaadinSuspendingExecutor} means under the Vaadin session lock, serialised against
- * the request thread: not in the background at all, and unable to take the session lock without
- * recursing. So the scheduler this executor installs forwards only the continuations of the threads
- * it created, and hands every other one to a JVM-wide pool of platform carriers, where the inherited
- * thread runs as it would on the JDK's default scheduler.
+ * <b>Only this executor's own threads reach the carrier executor</b>, see
+ * {@link LoomUtils#newVirtualThreadFactory}. That matters for {@link VaadinSuspendingExecutor}: a
+ * virtual thread started inside one of its runnables would otherwise run under the Vaadin session
+ * lock, serialised against the request thread, and couldn't take the session lock without recursing.
  */
 public final class SuspendingExecutor implements AutoCloseable {
     /**
@@ -46,13 +37,6 @@ public final class SuspendingExecutor implements AutoCloseable {
     private final ExecutorService virtualThreadExecutor;
 
     /**
-     * {@link LoomUtils#continuationOf} of every thread this executor created. Weak, since a finished
-     * thread never submits again.
-     */
-    @NotNull
-    private final Set<Runnable> ownContinuations = Collections.synchronizedSet(Collections.newSetFromMap(new WeakHashMap<>()));
-
-    /**
      * Creates the suspending executor.
      * @param executor Executes given Runnables (Continuations) on an actual OS thread
      *                 (called a carrier thread). No magic happens in this executor - the
@@ -61,28 +45,7 @@ public final class SuspendingExecutor implements AutoCloseable {
      * @param name the name prefix of the threads constructed for this executor.
      */
     public SuspendingExecutor(@NotNull Executor executor, @NotNull String name) {
-        Objects.requireNonNull(executor);
-        // fail here rather than at the first run(), on whichever thread happens to call it
-        LoomUtils.runContinuationField();
-        final ThreadFactory virtualThreadFactory = LoomUtils.newVirtualBuilder(continuation ->
-                        (ownContinuations.contains(continuation) ? executor : InheritedThreadCarriers.POOL).execute(continuation))
-                .name(name, 0)
-                .factory();
-        virtualThreadExecutor = Executors.newThreadPerTaskExecutor(task -> {
-            final Thread thread = virtualThreadFactory.newThread(task);
-            ownContinuations.add(LoomUtils.continuationOf(thread));
-            return thread;
-        });
-    }
-
-    /**
-     * Carries the virtual threads that inherited some {@code SuspendingExecutor}'s scheduler.
-     * Cached rather than bounded: a continuation that blocks without unmounting holds its carrier,
-     * and a bounded pool would queue unrelated threads behind it.
-     */
-    private static final class InheritedThreadCarriers {
-        static final ExecutorService POOL = Executors.newCachedThreadPool(
-                Thread.ofPlatform().daemon().name("loom-inherited-carrier-", 0).factory());
+        virtualThreadExecutor = Executors.newThreadPerTaskExecutor(LoomUtils.newVirtualThreadFactory(executor, name));
     }
 
     /**
