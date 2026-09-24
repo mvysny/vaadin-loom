@@ -9,6 +9,7 @@ package com.vaadin.starter.skeleton.loom;
 import org.jetbrains.annotations.NotNull;
 
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
 import java.util.Objects;
 import java.util.concurrent.Executor;
 
@@ -44,5 +45,47 @@ public class LoomUtils {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    /** Resolved once by {@link #runContinuationField()}. */
+    private static volatile Field runContinuation;
+
+    /**
+     * The one {@code Runnable} the JDK hands a virtual thread's scheduler on every submit - at
+     * start, and again at each resume after a park - so it identifies the thread from the
+     * scheduler's side, which sees nothing else.
+     * <p></p>
+     * Reads the private final {@code java.lang.VirtualThread.runContinuation}, set in the
+     * constructor. Requires {@code --add-opens java.base/java.lang=ALL-UNNAMED}, like
+     * {@link #newVirtualBuilder}.
+     */
+    @NotNull
+    static Runnable continuationOf(@NotNull Thread virtualThread) {
+        try {
+            return (Runnable) runContinuationField().get(virtualThread);
+        } catch (IllegalAccessException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    /**
+     * @throws IllegalStateException if this JDK's {@code VirtualThread} has no readable
+     *                               {@code runContinuation} field
+     */
+    @NotNull
+    static Field runContinuationField() {
+        Field field = runContinuation;
+        if (field == null) {
+            try {
+                field = Class.forName("java.lang.VirtualThread").getDeclaredField("runContinuation");
+                field.setAccessible(true);
+            } catch (ReflectiveOperationException | RuntimeException e) {
+                throw new IllegalStateException("Cannot read java.lang.VirtualThread.runContinuation on "
+                        + Runtime.version() + "; it tells this executor's own virtual threads from ones that"
+                        + " inherited its scheduler. Is --add-opens java.base/java.lang=ALL-UNNAMED set?", e);
+            }
+            runContinuation = field;
+        }
+        return field;
     }
 }

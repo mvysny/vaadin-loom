@@ -17,6 +17,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.RejectedExecutionException;
@@ -155,15 +156,50 @@ public class SessionLockFromVirtualThreadTest {
 
     /**
      * A virtual thread started from inside {@link VaadinSuspendingExecutor#run} inherits
-     * {@code UIExecutor} as its scheduler but carries no marker, so it is back to spinning on the
-     * session lock. The depth guard in {@code UIExecutor.execute()} must cut that short instead of
-     * letting it reach {@link StackOverflowError}.
+     * {@code UIExecutor} as its scheduler but carries no marker. {@link SuspendingExecutor} carries it
+     * off the UI thread, so it takes the session lock like any background thread: it blocks until the
+     * UI thread releases the lock, rather than recursing.
+     */
+    @Test
+    public void testVirtualThreadStartedInsideABlockTakesTheRealLock() throws InterruptedException {
+        final VaadinSession session = VaadinSession.getCurrent();
+        final AtomicReference<Thread> child = new AtomicReference<>();
+        final AtomicBoolean gotTheLock = new AtomicBoolean();
+        try (VaadinSuspendingExecutor executor = new VaadinSuspendingExecutor(UI.getCurrent())) {
+            executor.run(() -> child.set(Thread.ofVirtual().start(() -> {
+                session.lock();
+                try {
+                    gotTheLock.set(session.hasLock());
+                } finally {
+                    session.unlock();
+                }
+            })));
+            MockVaadin.clientRoundtrip(true);
+            // this test thread holds the session lock again, so the child needs a gap to take it in
+            session.unlock();
+            try {
+                assertTrue(child.get().join(Duration.ofSeconds(5)), "the child never got the session lock");
+            } finally {
+                session.lock();
+            }
+        }
+        assertTrue(gotTheLock.get(), "the child must have held the real session lock");
+        assertEquals(List.of(), reportedErrors);
+    }
+
+    /**
+     * A {@link VaadinSuspendingExecutor#run} block that loses its marker is back to spinning on the
+     * session lock its own carrier holds. The depth guard in {@code UIExecutor.execute()} must cut
+     * that short instead of letting it reach {@link StackOverflowError}.
      */
     @Test
     public void testRunawayContinuationIsRejectedRatherThanOverflowingTheStack() {
         final VaadinSession session = VaadinSession.getCurrent();
         try (VaadinSuspendingExecutor executor = new VaadinSuspendingExecutor(UI.getCurrent())) {
-            executor.run(() -> Thread.ofVirtual().start(session::lock));
+            executor.run(() -> {
+                VirtualThreadAwareLock.exitUIVirtualThread();
+                session.lock();
+            });
 
             // Not MockVaadin.clientRoundtrip(): its finally block replaces whatever unlock() throws
             // with an assertion about the session lock. unlock() is what drains the UI queue anyway.
@@ -176,7 +212,7 @@ public class SessionLockFromVirtualThreadTest {
         // frames of the same eight-frame cycle and no hint of the cause.
         assertEquals(List.of(), reportedErrors);
 
-        // The session survived: the runaway was cut before it could take the stack with it. The child
+        // The session survived: the runaway was cut before it could take the stack with it. The block
         // stays stranded - see UIExecutor.execute() - but a stranded virtual thread is never
         // resubmitted, so it can't restart the runaway either.
         assertTrue(session.getLockInstance().tryLock(), "the session lock must still be usable");

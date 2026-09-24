@@ -135,13 +135,6 @@ public final class VaadinSuspendingExecutor implements AutoCloseable {
         @NotNull
         private static final ThreadLocal<int[]> nestedSubmits = ThreadLocal.withInitial(() -> new int[1]);
 
-        /**
-         * Set once a UI virtual thread has been warned, so a block that spawns in a loop doesn't flood
-         * the log.
-         */
-        @NotNull
-        private static final ThreadLocal<Boolean> warned = new ThreadLocal<>();
-
         @NotNull
         private final UI ui;
 
@@ -150,7 +143,9 @@ public final class VaadinSuspendingExecutor implements AutoCloseable {
         }
 
         /**
-         * Submits {@code command} - a continuation - to the Vaadin UI thread.
+         * Submits {@code command} - a continuation - to the Vaadin UI thread. Only the continuations of
+         * {@link VaadinSuspendingExecutor#run} blocks arrive here: a virtual thread a block starts inherits this scheduler, but
+         * {@link SuspendingExecutor} carries it elsewhere.
          *
          * @throws RejectedExecutionException if submits nest {@code MAX_NESTED_SUBMITS} deep on this
          * thread: a continuation is feeding itself back in and would otherwise recurse until
@@ -160,7 +155,6 @@ public final class VaadinSuspendingExecutor implements AutoCloseable {
          */
         @Override
         public void execute(@NotNull Runnable command) {
-            warnIfSubmittedByAUIVirtualThread();
             final int[] depth = nestedSubmits.get();
             if (depth[0] >= MAX_NESTED_SUBMITS) {
                 throw new RejectedExecutionException("Continuation submits are " + MAX_NESTED_SUBMITS
@@ -174,30 +168,6 @@ public final class VaadinSuspendingExecutor implements AutoCloseable {
             } finally {
                 depth[0]--;
             }
-        }
-
-        /**
-         * Warns, once per thread, when a UI virtual thread is the one submitting - which usually means
-         * it just started a virtual thread that silently inherited this executor as its scheduler.
-         * <p></p>
-         * A warning and not a rejection: the other way to get here is one {@link VaadinSuspendingExecutor#run} block unparking
-         * another, which is fine, and the continuation alone doesn't say which of the two it is.
-         * Rejecting virtual callers outright would also break a background virtual thread completing a
-         * future that a UI virtual thread awaits.
-         */
-        private static void warnIfSubmittedByAUIVirtualThread() {
-            if (!VirtualThreadAwareLock.isUIVirtualThread() || warned.get() != null) {
-                return;
-            }
-            warned.set(Boolean.TRUE);
-            log.warn("{} submitted a continuation to its own executor. If you started a virtual thread"
-                    + " from inside a VaadinSuspendingExecutor block, it inherited this executor as its"
-                    + " scheduler: its code runs under the Vaadin session lock with UI.getCurrent() unset,"
-                    + " and taking the session lock from it recurses until the executor rejects it. Only"
-                    + " Thread.ofVirtual() inherits - new Thread(..) and Thread.ofPlatform() give you an"
-                    + " ordinary platform thread. Start virtual threads from the Vaadin UI thread instead."
-                    + " Disregard this if another block of the same executor simply unparked this one.",
-                    Thread.currentThread());
         }
 
         private void submit(@NotNull Runnable command) {
